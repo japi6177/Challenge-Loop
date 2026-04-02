@@ -1,0 +1,27 @@
+<div class="glass-card col-12 col-md-6 col-lg-4 w-100 mx-auto" style="max-width: 450px;">
+  <div class="text-center mb-4">
+    <h2 class="fw-bold fs-1">Welcome Back</h2>
+    <p class="text-white-50">Continue where you left off.</p>
+  </div>
+  
+  {{#if error}}
+  <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.4); color: #ff6b81;" role="alert">
+    <i class="fa-solid fa-circle-exclamation me-2"></i>{{error}}
+  </div>
+  {{/if}}
+
+  <form action="/login" method="POST">
+    <div class="mb-3">
+      <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
+      <input type="text" class="form-control" name="username" required placeholder="Enter your username">
+    </div>
+    <div class="mb-4">
+      <label class="form-label text-white-50 small text-uppercase fw-bold">Password</label>
+      <input type="password" class="form-control" name="password" required placeholder="Enter your password">
+    </div>
+    <button type="submit" class="btn btn-neon w-100 mt-2">Enter the Loop</button>
+  </form>
+  <div class="text-center mt-5">
+    <small class="text-white-50">New here? <a href="/register" class="fw-semibold" style="color: var(--primary); text-decoration: none;">Create an account</a></small>
+  </div>
+</div>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Challenge Loop</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #caff00; /* Neon Lime */
+      --secondary: #9000ff; /* Neon Purple */
+      --bg-color: #0f0f13;
+      --card-bg: #1c1c24;
+      --text: #f0f0f0;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    .custom-container {
+      flex: 1;
+      padding: 3rem 1rem;
+    }
+    /* Dynamic Buttons */
+    .btn-neon {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      font-weight: 600;
+      padding: 0.75rem 1.75rem;
+      border-radius: 50px;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .btn-neon:hover {
+      background: #e6ff66;
+      box-shadow: 0 0 15px var(--primary);
+      transform: translateY(-2px);
+    }
+    /* Cards */
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      padding: 2.5rem;
+      transition: transform 0.3s ease;
+    }
+    .form-control {
+      background-color: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: white;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+    }
+    .form-control:focus {
+      background-color: rgba(255,255,255,0.05);
+      border-color: var(--primary);
+      box-shadow: none;
+      color: white;
+    }
+    /* Background blob */
+    .bg-blob {
+      position: absolute;
+      top: -100px;
+      left: -100px;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+      opacity: 0.3;
+      filter: blur(50px);
+      z-index: -1;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-blob"></div>
+  {{> header}}
+  <main class="container custom-container d-flex flex-column align-items-center justify-content-center">
+    {{{body}}}
+  </main>
+  {{> footer}}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<header class="py-3 px-4 w-100 d-flex justify-content-between align-items-center" style="background: rgba(15, 15, 19, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10;">
+  <div class="d-flex align-items-center gap-2">
+    <i class="fa-solid fa-infinity fs-3" style="color: var(--primary);"></i>
+    <span class="fs-4 fw-bold" style="letter-spacing: -1px;">Challenge<span style="color: var(--primary)">Loop</span></span>
+  </div>
+  <nav>
+    <ul class="nav">
+      {{#if user}}
+      <li class="nav-item"><a class="nav-link text-light opacity-75" href="/home">Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link text-light opacity-75" href="/discover">Discover</a></li>
+      <li class="nav-item"><a class="nav-link text-light opacity-75" href="/logout"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</a></li>
+      {{else}}
+      <li class="nav-item"><a class="nav-link text-light opacity-75 fw-semibold" href="/login">Log In</a></li>
+      <li class="nav-item ms-2"><a class="btn btn-neon btn-sm py-2 px-4 rounded-pill" style="font-size: 0.85rem;" href="/register">Join Us</a></li>
+      {{/if}}
+    </ul>
+  </nav>
+</header>
