@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Challenge Loop</title>
+  
+  <!-- Dynamic Primary Color Favicon (fa-infinity) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'><path fill='%23caff00' d='M471.1 96C405 96 353.3 137.3 320 174.6 286.7 137.3 235 96 168.9 96 75.8 96 0 167.8 0 256s75.8 160 168.9 160c66.1 0 117.8-41.3 151.1-78.6 33.3 37.3 85 78.6 151.1 78.6 93.1 0 168.9-71.8 168.9-160S564.2 96 471.1 96zM168.9 320c-40.2 0-72.9-28.7-72.9-64s32.7-64 72.9-64c38.2 0 73.4 36.1 94 64-20.4 27.6-55.9 64-94 64zm302.2 0c-38.2 0-73.4-36.1-94-64 20.4-27.6 55.9-64 94-64 40.2 0 72.9 28.7 72.9 64s-32.7 64-72.9 64z'/></svg>" type="image/svg+xml">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #caff00; /* Neon Lime */
+      --secondary: #9000ff; /* Neon Purple */
+      --bg-color: #0f0f13;
+      --card-bg: #1c1c24;
+      --text: #f0f0f0;
+    }
+    body, html {
+      min-height: 100vh;
+      background-color: var(--bg-color);
+      color: #fff;
+      overflow-x: hidden;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+    .custom-container {
+      flex: 1;
+      padding: 3rem 1rem;
+    }
+    /* Dynamic Buttons */
+    .btn-neon {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      font-weight: 600;
+      padding: 0.75rem 1.75rem;
+      border-radius: 50px;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .btn-neon:hover {
+      background: #e6ff66;
+      box-shadow: 0 0 15px var(--primary);
+      transform: translateY(-2px);
+    }
+    /* Cards */
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      padding: 2.5rem;
+      transition: transform 0.3s ease;
+    }
+    .form-control {
+      background-color: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: white;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+    }
+    .form-control:focus {
+      background-color: rgba(255,255,255,0.05);
+      border-color: var(--primary);
+      box-shadow: none;
+      color: white;
+    }
+    /* Background blob */
+    .bg-blob {
+      position: absolute;
+      top: -100px;
+      left: -100px;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+      opacity: 0.3;
+      filter: blur(50px);
+      z-index: -1;
+      pointer-events: none;
+    }
+  </style>
+  <!-- HTMX Integration for Dynamic Routing -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body hx-boost="true">
+  <div class="bg-blob"></div>
+  {{> header}}
+  <main class="container custom-container d-flex flex-column align-items-center justify-content-center">
+    {{{body}}}
+  </main>
+  {{> footer}}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function parseLocalDates() {
+        document.querySelectorAll('.local-date').forEach(el => {
+            if(el.dataset.date && !el.dataset.formatted) {
+                const date = new Date(el.dataset.date);
+                el.innerText = date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                el.dataset.formatted = "true";
+            }
+        });
+    }
+    // Listen for initial load and HTMX SPA updates
+    document.addEventListener('DOMContentLoaded', parseLocalDates);
+    document.addEventListener('htmx:afterSwap', parseLocalDates);
+  </script>
+</body>
+</html>

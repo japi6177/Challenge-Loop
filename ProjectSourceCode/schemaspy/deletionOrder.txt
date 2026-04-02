@@ -1,0 +1,5 @@
+user_preferences
+challenge_entries
+user_challenges
+challenges
+users

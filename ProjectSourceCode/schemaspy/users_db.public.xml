@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<database name="users_db" schema="public" type="PostgreSQL - 18.2 (Debian 18.2-1.pgdg13+1)">
+   <sequences>
+      <sequence increment="1" name="challenge_entries_id_seq" startValue="1"/>
+      <sequence increment="1" name="challenges_id_seq" startValue="1"/>
+      <sequence increment="1" name="user_challenges_id_seq" startValue="1"/>
+      <sequence increment="1" name="users_id_seq" startValue="1"/>
+   </sequences>
+   <tables>
+      <table name="challenge_entries" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('challenge_entries_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="user_challenge_id" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="challenge_entries_user_challenge_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="user_challenges"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="entry_date" nullable="false" remarks="" size="13" type="date" typeCode="91"/>
+         <column autoUpdated="false" defaultValue="0" digits="0" id="3" name="amount" nullable="true" remarks="" size="0" type="numeric" typeCode="2"/>
+         <column autoUpdated="false" defaultValue="false" digits="0" id="4" name="is_completed" nullable="true" remarks="" size="1" type="bool" typeCode="-7"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="challenge_entries_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="challenges" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('challenges_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="challenge_id" foreignKey="user_challenges_challenge_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="user_challenges"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="category" nullable="false" remarks="" size="50" type="varchar" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="title" nullable="false" remarks="" size="100" type="varchar" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="description" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="4" name="start_date" nullable="false" remarks="" size="13" type="date" typeCode="91"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="5" name="end_date" nullable="false" remarks="" size="13" type="date" typeCode="91"/>
+         <column autoUpdated="false" defaultValue="'checkbox'::character varying" digits="0" id="6" name="entry_type" nullable="false" remarks="" size="20" type="varchar" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="1" digits="0" id="7" name="daily_target" nullable="true" remarks="" size="0" type="numeric" typeCode="2"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="challenges_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <checkConstraint constraint="(end_date &gt;= start_date)" name="check_dates"/>
+      </table>
+      <table name="user_challenges" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('user_challenges_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="user_challenge_id" foreignKey="challenge_entries_user_challenge_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="challenge_entries"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="user_id" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="user_challenges_user_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="users"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="challenge_id" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="user_challenges_challenge_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="challenges"/>
+         </column>
+         <column autoUpdated="false" defaultValue="CURRENT_TIMESTAMP" digits="6" id="3" name="joined_at" nullable="true" remarks="" size="29" type="timestamp" typeCode="93"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="user_challenges_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="idx_user_challenges_challenge_id" unique="false">
+            <column ascending="true" name="challenge_id"/>
+         </index>
+         <index name="idx_user_challenges_user_id" unique="false">
+            <column ascending="true" name="user_id"/>
+         </index>
+         <index name="unique_user_challenge" unique="true">
+            <column ascending="true" name="user_id"/>
+            <column ascending="true" name="challenge_id"/>
+         </index>
+      </table>
+      <table name="user_preferences" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="user_id" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="user_preferences_user_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="users"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="category" nullable="false" remarks="" size="50" type="varchar" typeCode="12"/>
+         <primaryKey column="user_id" sequenceNumberInPK="1"/>
+         <primaryKey column="category" sequenceNumberInPK="2"/>
+         <index name="user_preferences_pkey" unique="true">
+            <column ascending="true" name="user_id"/>
+            <column ascending="true" name="category"/>
+         </index>
+      </table>
+      <table name="user_progress" numRows="0" remarks="" schema="public" type="VIEW" viewSql=" WITH daily_sums AS (&#10;         SELECT challenge_entries.user_challenge_id,&#10;            challenge_entries.entry_date,&#10;            sum(challenge_entries.amount) AS total_amount,&#10;            bool_or(challenge_entries.is_completed) AS is_done&#10;           FROM challenge_entries&#10;          GROUP BY challenge_entries.user_challenge_id, challenge_entries.entry_date&#10;        ), successful_days AS (&#10;         SELECT ds.user_challenge_id,&#10;            count(*) AS success_count&#10;           FROM ((daily_sums ds&#10;             JOIN user_challenges uc_1 ON ((ds.user_challenge_id = uc_1.id)))&#10;             JOIN challenges c ON ((uc_1.challenge_id = c.id)))&#10;          WHERE ((((c.entry_type)::text = 'amount'::text) AND (ds.total_amount &gt;= c.daily_target)) OR (((c.entry_type)::text = 'checkbox'::text) AND ds.is_done))&#10;          GROUP BY ds.user_challenge_id&#10;        )&#10; SELECT uc.id AS user_challenge_id,&#10;    uc.user_id,&#10;    uc.challenge_id,&#10;    COALESCE(sd.success_count, (0)::bigint) AS successful_days,&#10;    LEAST(round((((COALESCE(sd.success_count, (0)::bigint))::numeric / 7.0) * (100)::numeric)), (100)::numeric) AS progress&#10;   FROM (user_challenges uc&#10;     LEFT JOIN successful_days sd ON ((uc.id = sd.user_challenge_id)));">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="user_challenge_id" nullable="true" remarks="" size="10" type="int4" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="user_id" nullable="true" remarks="" size="10" type="int4" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="challenge_id" nullable="true" remarks="" size="10" type="int4" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="successful_days" nullable="true" remarks="" size="19" type="int8" typeCode="-5"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="4" name="progress" nullable="true" remarks="" size="0" type="numeric" typeCode="2"/>
+      </table>
+      <table name="users" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('users_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="user_id" foreignKey="user_challenges_user_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="user_challenges"/>
+            <child column="user_id" foreignKey="user_preferences_user_id_fkey" implied="false" onDeleteCascade="true" schema="public" table="user_preferences"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="username" nullable="false" remarks="" size="50" type="varchar" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="email" nullable="false" remarks="" size="100" type="varchar" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="password" nullable="false" remarks="" size="60" type="bpchar" typeCode="1"/>
+         <column autoUpdated="false" defaultValue="CURRENT_TIMESTAMP" digits="6" id="4" name="created_at" nullable="true" remarks="" size="29" type="timestamp" typeCode="93"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="users_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="users_email_key" unique="true">
+            <column ascending="true" name="email"/>
+         </index>
+         <index name="users_username_key" unique="true">
+            <column ascending="true" name="username"/>
+         </index>
+      </table>
+   </tables>
+</database>

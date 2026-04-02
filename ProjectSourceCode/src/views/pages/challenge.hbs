@@ -1,0 +1,107 @@
+<div class="row w-100 mt-2 px-md-4 align-items-start">
+  
+  <div class="col-md-7 mb-4">
+    <a href="/home" class="text-white-50 text-decoration-none small mb-3 d-inline-block"><i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard</a>
+    
+    <div class="glass-card p-4 p-md-5 position-relative overflow-hidden">
+      <div style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--primary); opacity:0.1; filter:blur(40px);"></div>
+      
+      <span class="badge mb-3 px-3 py-2 rounded-pill" style="background: var(--secondary); font-size: 0.85rem;">{{challenge.category}}</span>
+      <h1 class="display-5 fw-bold mb-3">{{challenge.title}}</h1>
+      <p class="text-white-50 lead mb-5">{{challenge.description}}</p>
+
+      {{#if userChallenge}}
+      <div class="p-4 rounded-4 mb-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+        <h4 class="fw-bold mb-1"><i class="fa-regular fa-calendar-check me-2" style="color: var(--primary);"></i>Log Your Progress</h4>
+        <p class="text-white-50 small mb-4">Update past entries or log today's value to maintain accuracy and climb the leaderboard.</p>
+        
+        <form action="/challenge/{{challenge.id}}/log" method="POST" class="d-flex align-items-end gap-3 flex-wrap">
+          <div style="flex: 1; min-width: 150px;">
+            <label class="form-label text-white-50 small text-uppercase fw-bold">Date</label>
+            <input type="date" class="form-control" name="date" value="{{today}}" max="{{today}}" required>
+          </div>
+          
+          <div style="flex: 1; min-width: 150px;">
+            {{#if (eq challenge.entry_type 'amount')}} <!-- We could use a standard hbs helper, but since we don't have them installed we will just let CSS handle visibility or fallback to HTML -->
+            <label class="form-label text-white-50 small text-uppercase fw-bold">Amount (Goal: {{challenge.daily_target}})</label>
+            <input type="number" step="0.01" class="form-control" name="amount" placeholder="e.g. 2.5">
+            {{else}}
+            <label class="form-label text-white-50 small text-uppercase fw-bold d-block">Did you complete it?</label>
+            <div class="form-check form-check-inline mt-2">
+              <input class="form-check-input" type="checkbox" name="completed" id="completedCheck">
+              <label class="form-check-label text-white" for="completedCheck">Yes, done!</label>
+            </div>
+            {{/if}}
+          </div>
+          
+          <div>
+             <button type="submit" class="btn btn-neon pb-2 pt-2 px-4"><i class="fa-solid fa-floppy-disk me-1"></i> Save Entry</button>
+          </div>
+        </form>
+      </div>
+
+      <h5 class="fw-bold mb-3 border-bottom pb-2 border-secondary border-opacity-25 mt-5">Recent Logs</h5>
+      {{#if entries.length}}
+      <ul class="list-group list-group-flush bg-transparent">
+        {{#each entries}}
+        <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 px-0 d-flex justify-content-between align-items-center">
+            <span class="text-white-50"><i class="fa-regular fa-calendar me-2"></i>{{this.entry_date}}</span>
+            {{#if (eq ../challenge.entry_type 'amount')}}
+              <span class="badge border border-light border-opacity-25 bg-dark px-3">{{this.amount}} recorded</span>
+            {{else}}
+              {{#if this.is_completed}}
+                <span class="badge" style="background: var(--primary); color: #000;">Completed <i class="fa-solid fa-check ms-1"></i></span>
+              {{else}}
+                <span class="badge bg-danger">Not Completed</span>
+              {{/if}}
+            {{/if}}
+        </li>
+        {{/each}}
+      </ul>
+      {{else}}
+        <p class="text-white-50 small">No logs exist for this challenge yet. Start logging above!</p>
+      {{/if}}
+      
+      {{else}}
+      <div class="alert alert-warning" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.4); color: #ffc107;" role="alert">
+         You must join this challenge from the Discover page to log data.
+      </div>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="glass-card p-4">
+      <div class="d-flex align-items-center gap-2 mb-4">
+        <i class="fa-solid fa-earth-americas fs-4" style="color: var(--secondary);"></i>
+        <h4 class="fw-bold m-0 text-white">Global Leaderboard</h4>
+      </div>
+      
+      {{#if leaderboard.length}}
+      <div class="d-flex flex-column gap-3">
+        {{#each leaderboard}}
+        <div class="d-flex flex-column p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+          <div class="d-flex align-items-center mb-2">
+            <div class="fw-bold text-white-50 me-3" style="width: 20px;">#{{@index}}</div>
+            <div class="flex-grow-1 fw-bold text-white">{{this.username}}</div>
+            <div class="text-end">
+              <span class="fw-bold fs-5" style="color: var(--primary);">{{this.successful_days}}<span class="text-white-50 fs-6">/7</span></span>
+            </div>
+          </div>
+          <!-- Today Progress Bar -->
+          <div class="d-flex align-items-center">
+             <small class="text-white-50 fw-bold me-2" style="font-size:0.6rem; width:45px; letter-spacing:1px;">TODAY</small>
+             <div class="progress flex-grow-1 bg-dark" style="height: 6px; border-radius: 10px;">
+                <div class="progress-bar" role="progressbar" style="width: {{this.today_progress}}%; background: var(--secondary);" aria-valuenow="{{this.today_progress}}" aria-valuemin="0" aria-valuemax="100"></div>
+             </div>
+             <small class="ms-2 fw-bold" style="font-size:0.75rem; color: var(--secondary);">{{this.today_progress}}%</small>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+        <p class="text-white-50">Nobody has recorded progress on this challenge yet. You could be first!</p>
+      {{/if}}
+    </div>
+  </div>
+</div>
