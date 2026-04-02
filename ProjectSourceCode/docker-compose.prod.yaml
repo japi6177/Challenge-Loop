@@ -3,21 +3,20 @@ services:
     image: postgres:latest
     env_file: .env
     volumes:
-      - challenge-loop:/var/lib/postgresql
+      - challenge-loop-prod:/var/lib/postgresql
       - ./src/init_data:/docker-entrypoint-initdb.d
+    restart: always
+
   web:
-    image: node:lts
-    user: 'node'
-    working_dir: /repository
+    build: .
     env_file: .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
     depends_on:
       - db
     ports:
       - '3000:3000'
-    volumes:
-      - ./:/repository
-    command: 'npm start'
+    restart: always
+
 volumes:
-  challenge-loop:
+  challenge-loop-prod:
