@@ -102,6 +102,10 @@ const auth = (req, res, next) => {
 };
 
 
+app.get('/welcome', (req, res) => {
+  res.json({status: 'success', message: 'Welcome!'});
+});
+
 app.get('/', (req, res) => {
   res.redirect('/login');
 });
@@ -358,5 +362,6 @@ app.get('/logout', auth, (req, res) => {
 //-----------------------------------------------------------------------  Start Server  -----------------------------------------------------------------------\\
 
 // starting the server and keeping the connection open to listen for more requests
-app.listen(3000);
+const server = app.listen(3000);
 console.log('Server is listening on port 3000');
+module.exports = server;
