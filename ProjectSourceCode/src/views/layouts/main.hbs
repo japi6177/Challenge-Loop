@@ -21,14 +21,16 @@
       --card-bg: #1c1c24;
       --text: #f0f0f0;
     }
+    body, html {
+      min-height: 100vh;
+      background-color: var(--bg-color);
+      color: #fff;
+      overflow-x: hidden;
+    }
     body {
       font-family: 'Outfit', sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text);
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow-x: hidden;
     }
     .custom-container {
       flex: 1;
