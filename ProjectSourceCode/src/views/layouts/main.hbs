@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Challenge Loop</title>
+  
+  <!-- Dynamic Primary Color Favicon (fa-infinity) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'><path fill='%23caff00' d='M471.1 96C405 96 353.3 137.3 320 174.6 286.7 137.3 235 96 168.9 96 75.8 96 0 167.8 0 256s75.8 160 168.9 160c66.1 0 117.8-41.3 151.1-78.6 33.3 37.3 85 78.6 151.1 78.6 93.1 0 168.9-71.8 168.9-160S564.2 96 471.1 96zM168.9 320c-40.2 0-72.9-28.7-72.9-64s32.7-64 72.9-64c38.2 0 73.4 36.1 94 64-20.4 27.6-55.9 64-94 64zm302.2 0c-38.2 0-73.4-36.1-94-64 20.4-27.6 55.9-64 94-64 40.2 0 72.9 28.7 72.9 64s-32.7 64-72.9 64z'/></svg>" type="image/svg+xml">
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
   <!-- Bootstrap CSS -->
@@ -85,8 +88,10 @@
       pointer-events: none;
     }
   </style>
+  <!-- HTMX Integration for Dynamic Routing -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
-<body>
+<body hx-boost="true">
   <div class="bg-blob"></div>
   {{> header}}
   <main class="container custom-container d-flex flex-column align-items-center justify-content-center">
@@ -94,5 +99,19 @@
   </main>
   {{> footer}}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function parseLocalDates() {
+        document.querySelectorAll('.local-date').forEach(el => {
+            if(el.dataset.date && !el.dataset.formatted) {
+                const date = new Date(el.dataset.date);
+                el.innerText = date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                el.dataset.formatted = "true";
+            }
+        });
+    }
+    // Listen for initial load and HTMX SPA updates
+    document.addEventListener('DOMContentLoaded', parseLocalDates);
+    document.addEventListener('htmx:afterSwap', parseLocalDates);
+  </script>
 </body>
 </html>

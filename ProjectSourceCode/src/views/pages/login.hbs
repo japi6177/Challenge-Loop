@@ -1,27 +1,81 @@
-<div class="glass-card col-12 col-md-6 col-lg-4 w-100 mx-auto" style="max-width: 450px;">
-  <div class="text-center mb-4">
-    <h2 class="fw-bold fs-1">Welcome Back</h2>
-    <p class="text-white-50">Continue where you left off.</p>
+<div class="row w-100 mt-4 align-items-stretch justify-content-center g-4 px-md-4">
+  <div class="col-12 text-center mb-2">
+    <h1 class="display-3 fw-bolder mb-2" style="letter-spacing:-1px;">Enter the <span style="color: var(--primary);">Loop</span></h1>
+    <p class="text-white-50 lead">Log into an existing profile or begin a new journey today.</p>
   </div>
-  
-  {{#if error}}
-  <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.4); color: #ff6b81;" role="alert">
-    <i class="fa-solid fa-circle-exclamation me-2"></i>{{error}}
-  </div>
-  {{/if}}
 
-  <form action="/login" method="POST">
-    <div class="mb-3">
-      <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
-      <input type="text" class="form-control" name="username" required placeholder="Enter your username">
+  <!-- Login Section -->
+  <div class="col-12 col-md-5 d-flex">
+    <div class="glass-card w-100 p-4 p-md-5 d-flex flex-column" style="background: rgba(144, 0, 255, 0.02); border-color: rgba(144, 0, 255, 0.1);">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold fs-2 text-white">Welcome Back</h2>
+        <p class="text-white-50 small">Continue where you left off.</p>
+      </div>
+      
+      {{#if loginError}}
+      <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.4); color: #ff6b81;" role="alert">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>{{loginError}}
+      </div>
+      {{/if}}
+
+      <form action="/login" method="POST" class="mt-auto mb-auto">
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
+          <input type="text" class="form-control form-control-lg" name="username" required placeholder="Enter your username">
+        </div>
+        <div class="mb-4">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Password</label>
+          <input type="password" class="form-control form-control-lg" name="password" required placeholder="Enter your password">
+        </div>
+        <button type="submit" class="btn btn-outline-light w-100 mt-2 py-3 fw-bold shadow-sm" style="transition: all 0.2s ease;">Log In <i class="fa-solid fa-arrow-right ms-1"></i></button>
+      </form>
     </div>
-    <div class="mb-4">
-      <label class="form-label text-white-50 small text-uppercase fw-bold">Password</label>
-      <input type="password" class="form-control" name="password" required placeholder="Enter your password">
+  </div>
+
+  <!-- Divider for Desktop / Mobile -->
+  <div class="col-12 col-md-1 d-flex align-items-center justify-content-center">
+     <!-- Desktop Vertical Line Wrapper -->
+     <div class="d-none d-md-flex align-items-center justify-content-center h-100 position-relative w-100">
+        <div style="width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1) 20%, rgba(255,255,255,0.1) 80%, transparent);"></div>
+        <span class="bg-dark px-2 position-absolute top-50 start-50 translate-middle text-white-50 small fw-bold text-uppercase" style="background: var(--bg-color) !important;">OR</span>
+     </div>
+
+     <!-- Mobile Horizontal Line Wrapper -->
+     <div class="d-block d-md-none text-white-50 small text-uppercase fw-bold text-center w-100 position-relative py-3">
+       <hr class="border-secondary border-opacity-50 my-0">
+       <span class="bg-dark px-3 position-absolute top-50 start-50 translate-middle" style="background: var(--bg-color) !important;">OR</span>
+     </div>
+  </div>
+
+  <!-- Register Section -->
+  <div class="col-12 col-md-5 d-flex">
+    <div class="glass-card w-100 p-4 p-md-5 d-flex flex-column" style="background: rgba(202, 255, 0, 0.02); border-color: rgba(202, 255, 0, 0.1);">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold fs-2 text-white">Start Your Journey</h2>
+        <p class="text-white-50 small">Create a new account below.</p>
+      </div>
+      
+      {{#if registerError}}
+      <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.4); color: #ff6b81;" role="alert">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>{{registerError}}
+      </div>
+      {{/if}}
+
+      <form action="/register" method="POST" class="mt-auto mb-auto">
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
+          <input type="text" class="form-control form-control-lg" name="username" required placeholder="Pick a username">
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Email</label>
+          <input type="email" class="form-control form-control-lg" name="email" required placeholder="name@example.com">
+        </div>
+        <div class="mb-4">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Password</label>
+          <input type="password" class="form-control form-control-lg" name="password" required placeholder="Create a password">
+        </div>
+        <button type="submit" class="btn btn-neon w-100 mt-2 py-3 fw-bold shadow-sm">Sign Up Securely</button>
+      </form>
     </div>
-    <button type="submit" class="btn btn-neon w-100 mt-2">Enter the Loop</button>
-  </form>
-  <div class="text-center mt-5">
-    <small class="text-white-50">New here? <a href="/register" class="fw-semibold" style="color: var(--primary); text-decoration: none;">Create an account</a></small>
   </div>
 </div>

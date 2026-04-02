@@ -1,0 +1,35 @@
+<div class="row w-100 justify-content-center mt-5">
+  <div class="col-md-6 col-lg-5">
+    <div class="glass-card text-center position-relative overflow-hidden p-5">
+      <div style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--primary); opacity:0.1; filter:blur(40px);"></div>
+      
+      <div class="mb-4">
+        <i class="fa-solid fa-user-astronaut fs-1 p-4 rounded-circle" style="background: rgba(255,255,255,0.05); color: var(--primary);"></i>
+      </div>
+      
+      <h2 class="fw-bold mb-1">{{profileUser.username}}</h2>
+      <p class="text-white-50 mb-4">{{profileUser.email}}</p>
+      
+      <div class="bg-dark p-3 rounded-4 mb-4" style="background: rgba(0,0,0,0.3) !important;">
+        <span class="text-white-50 small text-uppercase">Account Created</span>
+        <h5 class="m-0 mt-1"><span class="local-date fw-bold" data-date="{{profileUser.created_at}}"></span></h5>
+      </div>
+
+      <div class="row border-top border-secondary border-opacity-25 pt-4">
+        <div class="col-6 border-end border-secondary border-opacity-25">
+          <h2 class="fw-bold mb-0" style="color: var(--primary);">{{activeCount}}</h2>
+          <small class="text-uppercase text-white-50 fw-bold" style="font-size: 0.75rem;">Active Challenges</small>
+        </div>
+        <div class="col-6">
+          <h2 class="fw-bold mb-0" style="color: var(--primary);">{{completedCount}}</h2>
+          <small class="text-uppercase text-white-50 fw-bold" style="font-size: 0.75rem;">Total Completions</small>
+        </div>
+      </div>
+    
+      <div class="mt-5">
+         <button class="btn btn-outline-light rounded-pill w-100 mb-2">Edit Account Details</button>
+         <a href="/logout" class="btn btn-sm text-danger mt-2">Sign out of ChallengeLoop</a>
+      </div>
+    </div>
+  </div>
+</div>

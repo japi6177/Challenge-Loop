@@ -1,42 +1,32 @@
+{{#if preferredCategories.length}}
+<!-- NORMAL DISCOVER PAGE -->
 <div class="row w-100 mt-2 px-md-4 align-items-start">
   <div class="col-12 mb-4 text-center">
     <h1 class="display-5 fw-bold"><i class="fa-solid fa-compass me-2" style="color: var(--primary);"></i>Discover Challenges</h1>
-    <p class="text-white-50">Pick your categories, browse popular ones, and start dominating.</p>
+    <p class="text-white-50">Browse new additions and popular choices based on your interests.</p>
   </div>
   
   <div class="col-md-4 mb-4">
-    <div class="glass-card p-4">
-      <h4 class="fw-bold mb-3">Your Preferences</h4>
-      <form action="/update-preferences" method="POST">
-        <label class="form-label text-white-50 small text-uppercase">Categories you enjoy:</label>
-        <div class="d-flex flex-column gap-2 mb-4 mt-2">
-          {{#each allCategories}}
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" value="{{this}}" id="cat_{{this}}" name="categories">
-            <label class="form-check-label fw-semibold" for="cat_{{this}}">
-              {{this}}
-            </label>
-          </div>
-          {{/each}}
-        </div>
-        <button type="submit" class="btn btn-sm btn-outline-light w-100 rounded-pill">Save Preferences</button>
-      </form>
-
-      <hr class="border-secondary opacity-25 my-4">
-
-      <h5 class="fw-bold mb-3"><i class="fa-solid fa-fire me-2" style="color: var(--secondary);"></i>Global Popularity</h5>
-      <ul class="list-group list-group-flush bg-transparent">
-        {{#each allCategories}}
-        <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 px-0 d-flex justify-content-between align-items-center">
-            {{this}}
-            <i class="fa-solid fa-arrow-trend-up text-white-50"></i>
-        </li>
+    <div class="glass-card p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+         <h4 class="fw-bold m-0 text-white">Your Preferences</h4>
+         <!-- HTMX triggers standard Bootstrap modal seamlessly -->
+         <button type="button" class="btn btn-sm btn-outline-light rounded-pill" data-bs-toggle="modal" data-bs-target="#editPreferencesModal">
+           Edit <i class="fa-solid fa-pen ms-1 small"></i>
+         </button>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        {{#each preferredCategories}}
+        <span class="badge bg-dark border border-secondary text-white p-2 px-3 rounded-pill"><i class="fa-solid {{iconForCategory this}} me-2" style="color: var(--primary);"></i>{{this}}</span>
         {{/each}}
-      </ul>
+      </div>
     </div>
+
+    <!-- Global Popularity Tab Removed (Now natively embedded within individual challenge tracking algorithmic sorts) -->
   </div>
 
   <div class="col-md-8">
+     <!-- Recommended Challenges -->
     <div class="glass-card p-4 mb-4" style="background: rgba(202, 255, 0, 0.03); border-color: rgba(202, 255, 0, 0.2);">
       <h4 class="fw-bold mb-3 text-white">Recommended For You</h4>
       <div class="row row-cols-1 row-cols-md-2 g-3">
@@ -44,31 +34,125 @@
         <div class="col">
           <div class="card bg-dark border-0 h-100 rounded-4" style="background: rgba(0,0,0,0.4) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);">
             <div class="card-body">
-              <span class="badge mb-2 px-2 py-1" style="background: var(--secondary);">{{this.category}}</span>
+              <span class="badge mb-2 px-2 py-1" style="background: var(--secondary);"><i class="fa-solid {{iconForCategory this.category}} me-1"></i>{{this.category}}</span>
               <h5 class="card-title fw-bold text-white">{{this.title}}</h5>
               <p class="card-text text-white-50 small">{{this.description}}</p>
               <form action="/join-challenge" method="POST">
                 <input type="hidden" name="challenge_id" value="{{this.id}}">
-                <button type="submit" class="btn btn-sm btn-neon mt-2 w-100" style="font-size: 0.8rem;">Join Challenge <i class="fa-solid fa-plus ms-1"></i></button>
+                <button type="submit" class="btn btn-sm btn-neon mt-2 w-100 fw-bold shadow-sm" style="font-size: 0.8rem;">Join Challenge <i class="fa-solid fa-plus ms-1"></i></button>
               </form>
             </div>
           </div>
         </div>
         {{else}}
-          <div class="col-12"><p class="text-white-50">No new recommendations right now. Try updating your preferences!</p></div>
+          <div class="col-12"><p class="text-white-50">No new recommendations right now. Try expanding your preferences!</p></div>
         {{/each}}
       </div>
     </div>
 
+    <!-- Conquered -->
     {{#if completed.length}}
     <div class="glass-card p-4">
       <h4 class="fw-bold mb-3 text-white-50 fs-5"><i class="fa-solid fa-medal me-2" style="color: var(--primary);"></i>Conquered Challenges</h4>
       <div class="d-flex flex-wrap gap-2">
         {{#each completed}}
-         <span class="badge border border-secondary text-secondary p-2 rounded-pill"><i class="fa-solid fa-check me-1"></i>{{this.title}}</span>
+         <span class="badge border border-secondary text-secondary p-2 px-3 rounded-pill"><i class="fa-solid fa-check me-1"></i>{{this.title}}</span>
         {{/each}}
       </div>
     </div>
     {{/if}}
   </div>
 </div>
+
+<!-- Modal for Editing Preferences -->
+<div class="modal fade" id="editPreferencesModal" tabindex="-1" aria-hidden="true" data-bs-theme="dark">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card p-0 overflow-hidden shadow-lg" style="background: var(--bg-color);">
+      <div class="modal-header border-bottom border-light border-opacity-10 bg-dark" style="background: rgba(0,0,0,0.5) !important;">
+        <h5 class="modal-title fw-bold text-white">Edit Preferences</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- Close overlay manually using raw HTML wrapper interacting inside Bootstrap modal securely -->
+        <form action="/update-preferences" method="POST">
+          <label class="form-label text-white-50 small text-uppercase mb-3 d-block">Select categories you enjoy:</label>
+          <div class="d-flex flex-column gap-3 mb-4">
+            {{#each allCategories}}
+            <div class="form-check p-0 m-0 w-100">
+              <input class="form-check-input d-none" type="checkbox" value="{{this}}" id="modal_cat_{{this}}" name="categories" {{#if (includes ../preferredCategories this)}}checked{{/if}}>
+              <label class="form-check-label w-100 p-3 rounded-3 d-flex align-items-center gap-3 checkbox-label" for="modal_cat_{{this}}" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); cursor:pointer; transition: all 0.2s ease;">
+                <i class="fa-solid {{iconForCategory this}} fs-4 text-center" style="width:30px; color: var(--primary);"></i> 
+                <span class="fs-5 fw-bold text-white">{{this}}</span>
+                <i class="fa-solid fa-circle-check ms-auto fs-5 status-icon"></i>
+              </label>
+            </div>
+            {{/each}}
+          </div>
+          <button type="submit" class="btn btn-neon w-100 py-3 fw-bold" onclick="bootstrap.Modal.getInstance(document.getElementById('editPreferencesModal')).hide()">Save Selection</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{else}}
+
+<!-- SPLASH SCREEN FOR FIRST TIME VISITORS (No Preferences Selected) -->
+<div class="row w-100 mt-5 justify-content-center px-md-4">
+  <div class="col-md-7 col-lg-6 text-center mb-5">
+    <div class="glass-card p-4 p-md-5">
+      <div class="mb-4">
+        <div class="d-inline-flex p-4 rounded-circle mb-2" style="background: rgba(202, 255, 0, 0.1);">
+          <i class="fa-solid fa-wand-magic-sparkles fs-1" style="color: var(--primary);"></i>
+        </div>
+      </div>
+      <h2 class="display-6 fw-bold mb-3 text-white">Welcome to Discover</h2>
+      <p class="text-white-50 lead mb-5" style="font-size: 1.1rem;">To build your personalized recommendation feed, select the challenge categories that match your goals below.</p>
+      
+      <form action="/update-preferences" method="POST" class="text-start">
+        <div class="d-flex flex-column gap-3 mb-5">
+          {{#each allCategories}}
+          <label class="form-check-label w-100 m-0" style="cursor: pointer;" for="splash_cat_{{this}}">
+            <div class="p-3 px-4 rounded-4 d-flex align-items-center position-relative hover-lift" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s ease;">
+              <input class="form-check-input ms-0 me-4 fs-4" type="checkbox" value="{{this}}" id="splash_cat_{{this}}" name="categories">
+              <div class="d-flex align-items-center gap-3">
+                <i class="fa-solid {{iconForCategory this}} fs-2" style="color: var(--secondary); width:35px; text-align:center;"></i>
+                <div class="d-flex flex-column">
+                  <span class="fw-bold fs-4 text-white m-0 lh-1">{{this}}</span>
+                  <span class="text-white-50 small mt-1">Explore top challenges globally.</span>
+                </div>
+              </div>
+            </div>
+          </label>
+          {{/each}}
+        </div>
+        <button type="submit" class="btn btn-neon py-3 w-100 fs-5 shadow-lg fw-bold rounded-pill">Show Me My Feed <i class="fa-solid fa-arrow-right ms-2"></i></button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    background: rgba(255,255,255,0.05) !important;
+    border-color: var(--primary) !important;
+  }
+  .form-check-input:checked + .checkbox-label {
+      border-color: var(--primary) !important;
+      background: rgba(202, 255, 0, 0.05) !important;
+  }
+  .form-check-input + .checkbox-label .status-icon {
+     opacity: 0;
+     color: var(--secondary);
+     transition: all 0.2s ease;
+     transform: scale(0.8);
+  }
+  .form-check-input:checked + .checkbox-label .status-icon {
+     opacity: 1;
+     color: var(--primary);
+     transform: scale(1);
+  }
+</style>
+
+{{/if}}
