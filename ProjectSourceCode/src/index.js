@@ -219,6 +219,10 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
+app.get('/social', (req, res) => {
+  res.render('pages/social');
+});
+
 app.post('/update-preferences', auth, async (req, res) => {
     const userId = req.session.user.id;
     let categories = req.body.categories || [];
