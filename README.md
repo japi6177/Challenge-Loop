@@ -10,6 +10,12 @@ Hunter Jamili
 Jacob Pierson
 Fynian Walker
 
+#Technology Stack
+HTML
+CSS
+JavaScript
+NodeJs
+
 ## Environment Variables
 
 To run the project locally using Docker, you need to create a `.env` file inside the `ProjectSourceCode` directory with the following variables:
