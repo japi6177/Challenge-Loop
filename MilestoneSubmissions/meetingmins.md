@@ -19,3 +19,7 @@ stretch goal judges validate challenge pictures
 
 make it not take you to a new page when doing quick enteris
 improve progress bar with day blocks and percentage of the day overlayed on the block
+
+#4/6
+missing release notes. 
+  on project page
