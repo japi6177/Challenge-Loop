@@ -1,15 +1,33 @@
 <div class="row w-100 justify-content-center mt-5">
-  <div class="col-md-6 col-lg-5">
-    <div class="glass-card text-center position-relative overflow-hidden p-5">
+  <div class="col-md-8 col-lg-6">
+
+    {{#if flashError}}
+    <div class="alert rounded-4 mb-3 text-center" style="background: rgba(220,53,69,0.15); border: 1px solid rgba(220,53,69,0.4); color: #ff6b7a;">
+      <i class="fa-solid fa-circle-exclamation me-2"></i>{{flashError}}
+    </div>
+    {{/if}}
+    {{#if flashSuccess}}
+    <div class="alert rounded-4 mb-3 text-center" style="background: rgba(202,255,0,0.1); border: 1px solid rgba(202,255,0,0.3); color: var(--primary);">
+      <i class="fa-solid fa-circle-check me-2"></i>{{flashSuccess}}
+    </div>
+    {{/if}}
+
+    <!-- Profile Card -->
+    <div class="glass-card text-center position-relative overflow-hidden p-5 mb-4">
       <div style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--primary); opacity:0.1; filter:blur(40px);"></div>
-      
+
       <div class="mb-4">
-        <i class="fa-solid fa-user-astronaut fs-1 p-4 rounded-circle" style="background: rgba(255,255,255,0.05); color: var(--primary);"></i>
+        {{#if profileUser.profile_picture}}
+          <img src="{{profileUser.profile_picture}}" alt="Profile picture" class="rounded-circle"
+            style="width:100px; height:100px; object-fit:cover; border:3px solid var(--primary);">
+        {{else}}
+          <i class="fa-solid fa-user-astronaut fs-1 p-4 rounded-circle" style="background: rgba(255,255,255,0.05); color: var(--primary);"></i>
+        {{/if}}
       </div>
-      
+
       <h2 class="fw-bold mb-1">{{profileUser.username}}</h2>
       <p class="text-white-50 mb-4">{{profileUser.email}}</p>
-      
+
       <div class="bg-dark p-3 rounded-4 mb-4" style="background: rgba(0,0,0,0.3) !important;">
         <span class="text-white-50 small text-uppercase">Account Created</span>
         <h5 class="m-0 mt-1"><span class="local-date fw-bold" data-date="{{profileUser.created_at}}"></span></h5>
@@ -25,11 +43,106 @@
           <small class="text-uppercase text-white-50 fw-bold" style="font-size: 0.75rem;">Total Completions</small>
         </div>
       </div>
-    
+
       <div class="mt-5">
-         <button class="btn btn-outline-light rounded-pill w-100 mb-2">Edit Account Details</button>
-         <a href="/logout" class="btn btn-sm text-danger mt-2">Sign out of ChallengeLoop</a>
+        <button class="btn btn-outline-light rounded-pill w-100 mb-2" type="button"
+          data-bs-toggle="collapse" data-bs-target="#editPanel"
+          aria-expanded="{{#if openEdit}}true{{else}}false{{/if}}">
+          <i class="fa-solid fa-pen-to-square me-2"></i>Edit Account Details
+        </button>
+        <a href="/logout" class="btn btn-sm text-danger mt-2">Sign out of ChallengeLoop</a>
       </div>
     </div>
+
+    <!-- Edit Panel -->
+    <div class="collapse {{#if openEdit}}show{{/if}}" id="editPanel">
+      <div class="glass-card p-4 mb-5">
+
+        <!-- Profile Picture -->
+        <div class="mb-4 pb-4 border-bottom border-secondary border-opacity-25">
+          <h6 class="text-uppercase fw-bold mb-3" style="color: var(--primary); font-size: 0.75rem; letter-spacing: 1px;">
+            <i class="fa-solid fa-image me-2"></i>Profile Picture
+          </h6>
+          <div class="text-center mb-3">
+            <img id="imgPreview" src="{{#if profileUser.profile_picture}}{{profileUser.profile_picture}}{{else}}{{/if}}"
+              alt="" class="rounded-circle mb-2 {{#unless profileUser.profile_picture}}d-none{{/unless}}"
+              style="width:80px; height:80px; object-fit:cover; border:2px solid var(--primary);">
+          </div>
+          <form method="POST" action="/profile/upload-picture">
+            <input type="hidden" name="image_data" id="imageData">
+            <label class="form-label text-white-50 small">Choose an image (max 2MB)</label>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp"
+              class="form-control mb-2" style="cursor:pointer;">
+            <p id="fileError" class="text-danger small d-none">Image must be under 2MB.</p>
+            <button type="submit" id="uploadBtn" class="btn btn-neon w-100 rounded-pill" disabled>
+              Upload Picture
+            </button>
+          </form>
+        </div>
+
+        <!-- Change Email -->
+        <div class="mb-4 pb-4 border-bottom border-secondary border-opacity-25">
+          <h6 class="text-uppercase fw-bold mb-3" style="color: var(--primary); font-size: 0.75rem; letter-spacing: 1px;">
+            <i class="fa-solid fa-envelope me-2"></i>Change Email
+          </h6>
+          <form method="POST" action="/profile/change-email">
+            <input type="email" name="new_email" class="form-control mb-2" placeholder="New email address"
+              value="{{profileUser.email}}" required>
+            <button type="submit" class="btn btn-neon w-100 rounded-pill">Update Email</button>
+          </form>
+        </div>
+
+        <!-- Change Password -->
+        <div>
+          <h6 class="text-uppercase fw-bold mb-3" style="color: var(--primary); font-size: 0.75rem; letter-spacing: 1px;">
+            <i class="fa-solid fa-lock me-2"></i>Change Password
+          </h6>
+          <form method="POST" action="/profile/change-password">
+            <input type="password" name="current_password" class="form-control mb-2"
+              placeholder="Current password" required>
+            <input type="password" name="new_password" class="form-control mb-2"
+              placeholder="New password" minlength="8" required>
+            <input type="password" name="confirm_password" class="form-control mb-3"
+              placeholder="Confirm new password" required>
+            <button type="submit" class="btn btn-neon w-100 rounded-pill">Change Password</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
+
+<script>
+  (function () {
+    const fileInput = document.getElementById('fileInput');
+    const imageData = document.getElementById('imageData');
+    const imgPreview = document.getElementById('imgPreview');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileError = document.getElementById('fileError');
+
+    fileInput.addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      if (file.size > 2 * 1024 * 1024) {
+        fileError.classList.remove('d-none');
+        uploadBtn.disabled = true;
+        imageData.value = '';
+        return;
+      }
+
+      fileError.classList.add('d-none');
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        imageData.value = e.target.result;
+        imgPreview.src = e.target.result;
+        imgPreview.classList.remove('d-none');
+        uploadBtn.disabled = false;
+      };
+      reader.readAsDataURL(file);
+    });
+  })();
+</script>
