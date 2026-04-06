@@ -89,6 +89,25 @@
       z-index: -1;
       pointer-events: none;
     }
+/*css for social page*/
+.social-layout {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+/* LEFT SIDE */
+.social-sidebar {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* RIGHT SIDE */
+.social-main {
+  flex: 1; /* takes remaining space */
+}
   </style>
   <!-- HTMX Integration for Dynamic Routing -->
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>

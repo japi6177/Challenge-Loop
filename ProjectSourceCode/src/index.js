@@ -220,7 +220,10 @@ app.get('/discover', auth, async (req, res) => {
 });
 
 app.get('/social', (req, res) => {
-  res.render('pages/social');
+  res.render('pages/social', {
+    layout: 'main',
+    user: req.session.user
+  });
 });
 
 app.post('/update-preferences', auth, async (req, res) => {
