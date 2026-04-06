@@ -10,7 +10,7 @@ Hunter Jamili
 Jacob Pierson
 Fynian Walker
 
-#Technology Stack
+# Technology Stack
 HTML
 CSS
 JavaScript
