@@ -224,6 +224,41 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
+app.get('/create-challenge', auth, (req, res) => {
+    res.render('pages/create-challenge', {
+        user: req.session.user,
+        today: new Date().toISOString().split('T')[0]
+    });
+});
+
+app.post('/create-challenge', auth, async (req, res) => {
+    try {
+        const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+
+        await db.none(`
+            INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [
+            category,
+            title,
+            description,
+            start_date,
+            end_date,
+            entry_type,
+            daily_target || 1
+        ]);
+
+        res.redirect('/discover');
+    } catch (err) {
+        console.error(err);
+        res.render('pages/create-challenge', {
+            user: req.session.user,
+            today: new Date().toISOString().split('T')[0],
+            error: 'Failed to create challenge.'
+        });
+    }
+});
+
 app.post('/update-preferences', auth, async (req, res) => {
     const userId = req.session.user.id;
     let categories = req.body.categories || [];
