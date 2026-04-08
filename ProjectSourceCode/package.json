@@ -8,15 +8,15 @@
         "express": "^4.6.1",
         "express-handlebars": "^7.1.2",
         "express-session": "^1.19.0",
+        "handlebars": "latest",
         "nodemon": "^3.1.14",
         "pg-promise": "^12.6.1"
     },
   "devDependencies": {
-    "nodemon": "^2.0.7",
-    "mocha": "^6.2.2",
-    "chai": "^4.2.0",
-    "chai-http": "^4.3.0",
-    "npm-run-all": "^4.1.5"
+    "mocha": "latest",
+    "chai": "latest",
+    "chai-http": "latest",
+    "npm-run-all": "latest"
   },
   "scripts": {
     "prestart": "npm install",
