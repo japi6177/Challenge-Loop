@@ -16,7 +16,6 @@ const path = require('path');
 const pgp = require('pg-promise')(); //use pg-promise for database queries
 const bodyParser = require('body-parser'); 
 const bcrypt = require('bcryptjs'); //password encryption
-const axios = require('axios'); //send HTTP requests
 
 
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\

@@ -1,13 +1,14 @@
 // ********************** Initialize server **********************************
 
-const server = require('../src/index'); //TODO: Make sure the path to your index.js is correctly added
+const server = require('../src/index');
 
 // ********************** Import Libraries ***********************************
 
 const chai = require('chai'); // Chai HTTP provides an interface for live integration testing of the API's.
-const chaiHttp = require('chai-http');
+const chaiHttpPlugin = require('chai-http').default || require('chai-http');
+const { request } = require('chai-http');
 chai.should();
-chai.use(chaiHttp);
+chai.use(chaiHttpPlugin);
 const {assert, expect} = chai;
 
 // ********************** DEFAULT WELCOME TESTCASE ****************************
@@ -15,8 +16,7 @@ const {assert, expect} = chai;
 describe('Server!', () => {
   // Sample test case given to test / endpoint.
   it('Returns the default welcome message', done => {
-    chai
-      .request(server)
+    request.execute(server)
       .get('/welcome')
       .end((err, res) => {
         expect(res).to.have.status(200);
@@ -28,5 +28,39 @@ describe('Server!', () => {
 });
 
 // *********************** TODO: WRITE 2 UNIT TESTCASES **************************
-
+describe('Login/Auth', () => {
+  it('Returns the login page', done => {
+    request.execute(server)
+      .get('/login')
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        // Should show a valid login page
+        // Contains "Enter the <span style="color: var(--primary);">Loop</span>"
+        assert.include(res.text, 'Enter the <span style="color: var(--primary);">Loop</span>');
+        done();
+      });
+  });
+  it('Creates a test user, or login as testuser', (done) => {
+    request.execute(server)
+      .post('/login')
+      .send({ username: 'testuser', password: 'password' })
+      .end((err, res) => {
+        // Check if the response text contains the "Invalid username" error message
+        if (res.text && res.text.includes('Invalid username.')) {
+          // User doesn't exist, proceed to register
+          request.execute(server)
+            .post('/register')
+            .send({ username: 'testuser', email: 'test@example.com', password: 'password' })
+            .end((err2, res2) => {
+              expect(res2).to.have.status(200);
+              done();
+            });
+        } else {
+          // User managed to login properly (redirected to /home)
+          expect(res).to.have.status(200);
+          done();
+        }
+      });
+  });
+});
 // ********************************************************************************
