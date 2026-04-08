@@ -62,5 +62,35 @@ describe('Login/Auth', () => {
         }
       });
   });
+  it('Does not create a user without a password passed', (done) => {
+    request.execute(server)
+      .post('/register')
+      .send({ username: 'testuser', email: 'test@example.com' })
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        assert.include(res.text, 'Registration failed. Username or email might already be taken.');
+        done();
+      });
+  });
+  it('Does not create a user without an email passed', (done) => {
+    request.execute(server)
+      .post('/register')
+      .send({ username: 'testuser', password: 'password' })
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        assert.include(res.text, 'Registration failed. Username or email might already be taken.');
+        done();
+      });
+  });
+  it('Does not create a user without a username passed', (done) => {
+    request.execute(server)
+      .post('/register')
+      .send({ email: 'test@example.com', password: 'password' })
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        assert.include(res.text, 'Registration failed. Username or email might already be taken.');
+        done();
+      });
+  });
 });
 // ********************************************************************************

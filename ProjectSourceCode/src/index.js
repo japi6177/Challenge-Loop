@@ -140,13 +140,16 @@ app.get('/register', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+      throw new Error('Missing required fields');
+    }
     const hash = await bcrypt.hash(password, 10);
     const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
     
     req.session.user = { username: user.username, email: user.email, id: user.id };
     req.session.save(() => res.redirect('/home'));
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     res.render('pages/login', { registerError: 'Registration failed. Username or email might already be taken.' });
   }
 });
