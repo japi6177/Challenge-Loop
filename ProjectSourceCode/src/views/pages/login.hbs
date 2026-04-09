@@ -18,7 +18,7 @@
       </div>
       {{/if}}
 
-      <form action="/login" method="POST" class="mt-auto mb-auto">
+      <form action="/login" method="POST" class="mb-4">
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
           <input type="text" class="form-control form-control-lg" name="username" required placeholder="Enter your username">
@@ -28,6 +28,16 @@
           <input type="password" class="form-control form-control-lg" name="password" required placeholder="Enter your password">
         </div>
         <button type="submit" class="btn btn-outline-light w-100 mt-2 py-3 fw-bold shadow-sm" style="transition: all 0.2s ease;">Log In <i class="fa-solid fa-arrow-right ms-1"></i></button>
+      </form>
+
+      <hr class="border-secondary border-opacity-50 my-4">
+
+      <form action="/email-login" method="POST" class="mb-auto">
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Sign in with Email Code</label>
+          <input type="email" class="form-control form-control-lg" name="email" required placeholder="Enter your email">
+        </div>
+        <button type="submit" class="btn btn-outline-info w-100 py-3 fw-bold shadow-sm" style="transition: all 0.2s ease;">Send Login Code <i class="fa-solid fa-envelope ms-1"></i></button>
       </form>
     </div>
   </div>

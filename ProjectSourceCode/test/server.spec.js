@@ -7,6 +7,7 @@ const server = require('../src/index.js'); //TODO: Make sure the path to your in
 const chai = require('chai'); // Chai HTTP provides an interface for live integration testing of the API's.
 const chaiHttpPlugin = require('chai-http').default || require('chai-http');
 const { request } = require('chai-http');
+
 chai.should();
 chai.use(chaiHttpPlugin);
 const {assert, expect} = chai;
@@ -33,7 +34,7 @@ describe('Testing Add User API', () => {
     request.execute(server)
       .post('/register')
       .redirects(0) //This is necessary because the test returns status 200 otherwise. Idk why.
-      .send({username: `buh-${Date.now()}`, email: `boo-${Date.now()}@gmail.com`, password: 'beach20'})
+      .send({ username: `buh_${Date.now()}`, email: `test@s.abad.cc`, password: 'beach20' })
       .end((err, res) => {
         expect(res).to.have.status(302); //Test that the response is positive by checking for a redirect code.
         done();
@@ -42,7 +43,7 @@ describe('Testing Add User API', () => {
    it('Negative : /register. Checking invalid name', done => {
     request.execute(server)
       .post('/register')
-      .send({username: 20, email: 'bogus', password: 5})
+      .send({ username: 20, email: 'bogus', password: 5 })
       .end((err, res) => {
         expect(res).to.have.status(200);
         expect(res.text).to.include('Registration failed'); //Test that the negative response re-renders the page with the error message in hbs 
