@@ -30,8 +30,7 @@ describe('Server!', () => {
 // *********************** TODO: WRITE 2 UNIT TESTCASES **************************
 describe('Testing Add User API', () => {
   it('positive : /register', done => {
-    chai
-      .request(server)
+    request.execute(server)
       .post('/register')
       .redirects(0) //This is necessary because the test returns status 200 otherwise. Idk why.
       .send({username: 'buh', email: 'boo@gmail.com', password: 'beach20'})
@@ -41,8 +40,7 @@ describe('Testing Add User API', () => {
       });
   });
    it('Negative : /register. Checking invalid name', done => {
-    chai
-      .request(server)
+    request.execute(server)
       .post('/register')
       .send({username: 20, email: 'bogus', password: 5})
       .end((err, res) => {
