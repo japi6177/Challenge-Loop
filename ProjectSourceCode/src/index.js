@@ -14,8 +14,10 @@ const handlebars = require('express-handlebars'); //enable express to use handle
 const Handlebars = require('handlebars'); //include templating engine for handlebars
 const path = require('path');
 const pgp = require('pg-promise')(); //use pg-promise for database queries
-const bodyParser = require('body-parser'); 
+const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs'); //password encryption
+const { Resend } = require('resend'); // email client
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\
@@ -29,15 +31,15 @@ const hbs = handlebars.create({
   partialsDir: __dirname + '/views/partials',
   helpers: {
     eq: function (a, b) { return a === b; },
-    includes: function(arr, val) {
-       if(!Array.isArray(arr)) return false;
-       return arr.includes(val);
+    includes: function (arr, val) {
+      if (!Array.isArray(arr)) return false;
+      return arr.includes(val);
     },
-    iconForCategory: function(cat) {
-        if (cat === 'Fitness') return 'fa-dumbbell';
-        if (cat === 'Productivity') return 'fa-briefcase';
-        if (cat === 'Educational') return 'fa-book-open';
-        return 'fa-star';
+    iconForCategory: function (cat) {
+      if (cat === 'Fitness') return 'fa-dumbbell';
+      if (cat === 'Productivity') return 'fa-briefcase';
+      if (cat === 'Educational') return 'fa-book-open';
+      return 'fa-star';
     }
   }
 });
@@ -54,22 +56,22 @@ app.use(bodyParser.json({ limit: '5mb' })); // specify the usage of JSON for par
 // Database configuration
 const dbConfig = {
   host: 'db',
-  port: 5432, 
+  port: 5432,
   database: process.env.POSTGRES_DB,
-  user: process.env.POSTGRES_USER, 
-  password: process.env.POSTGRES_PASSWORD 
+  user: process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD
 };
 
 //Connect to the database
 const db = pgp(dbConfig);
 db.connect()
   .then(obj => {
-    console.log('Database connection successful'); 
+    console.log('Database connection successful');
     obj.done();
   })
   .catch(error => {
     console.log('ERROR:', error.message || error);
-});
+  });
 
 
 //***  Session Variables  **\\
@@ -102,11 +104,7 @@ const auth = (req, res, next) => {
 };
 
 app.get('/welcome', (req, res) => {
-  res.json({status: 'success', message: 'Welcome!'});
-});
-
-app.get('/welcome', (req, res) => {
-  res.json({status: 'success', message: 'Welcome!'});
+  res.json({ status: 'success', message: 'Welcome!' });
 });
 
 app.get('/', (req, res) => {
@@ -136,6 +134,60 @@ app.post('/login', async (req, res) => {
   }
 });
 
+app.post('/email-login', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
+    if (!user) {
+      return res.render('pages/login', { loginError: 'Email not found. Please register first.' });
+    }
+
+    // Generate 6 digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    req.session.emailCode = code;
+    req.session.emailCodeEmail = email;
+
+    await resend.emails.send({
+      from: 'onboarding@resend.abad.cc',
+      to: email, // Free tier allows sending only to verified domains, but we'll use it this way
+      subject: 'Your Sign In Code - Challenge Loop',
+      html: `<h2>Welcome to Challenge Loop</h2><p>Your sign in code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>`
+    });
+
+    req.session.save(() => res.redirect('/verify-code'));
+  } catch (err) {
+    console.log(err);
+    res.render('pages/login', { loginError: 'Error sending email. Check your API key or limits.' });
+  }
+});
+
+app.get('/verify-code', (req, res) => {
+  if (!req.session.emailCodeEmail) return res.redirect('/login');
+  res.render('pages/verify-code');
+});
+
+app.post('/verify-code', async (req, res) => {
+  const { code } = req.body;
+  if (!req.session.emailCode || !req.session.emailCodeEmail) {
+    return res.redirect('/login');
+  }
+
+  if (code === req.session.emailCode) {
+    try {
+      const user = await db.one('SELECT * FROM users WHERE email = $1', [req.session.emailCodeEmail]);
+      req.session.user = { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture };
+      delete req.session.emailCode;
+      delete req.session.emailCodeEmail;
+      req.session.save(() => res.redirect('/home'));
+    } catch (err) {
+      console.error(err);
+      res.render('pages/verify-code', { error: 'Error logging in.' });
+    }
+  } else {
+    res.render('pages/verify-code', { error: 'Invalid code.' });
+  }
+});
+
 app.get('/register', (req, res) => {
   res.redirect('/login');
 });
@@ -148,7 +200,7 @@ app.post('/register', async (req, res) => {
     }
     const hash = await bcrypt.hash(password, 10);
     const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
-    
+
     req.session.user = { username: user.username, email: user.email, id: user.id };
     req.session.save(() => res.redirect('/home'));
   } catch (err) {
@@ -162,16 +214,16 @@ app.get('/home', auth, async (req, res) => {
     const userId = req.session.user.id;
     const active = await db.any(`SELECT c.*, COALESCE(up.progress, 0) as progress, uc.id as join_id FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
     const completed = await db.any(`SELECT c.* FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) = 100`, [userId]);
-    res.render('pages/home', { 
-        user: req.session.user, 
-        active, 
-        completedCount: completed.length, 
-        activeCount: active.length,
-        today: new Date().toISOString().split('T')[0]
+    res.render('pages/home', {
+      user: req.session.user,
+      active,
+      completedCount: completed.length,
+      activeCount: active.length,
+      today: new Date().toISOString().split('T')[0]
     });
-  } catch(err) {
+  } catch (err) {
     console.error(err);
-    res.render('pages/home', { user: req.session.user, active:[], completedCount: 0, activeCount: 0, today: new Date().toISOString().split('T')[0] });
+    res.render('pages/home', { user: req.session.user, active: [], completedCount: 0, activeCount: 0, today: new Date().toISOString().split('T')[0] });
   }
 });
 
@@ -208,7 +260,7 @@ app.get('/discover', auth, async (req, res) => {
         ORDER BY popularity DESC, c.id ASC
       `, [preferredCategories, userId]);
     } else {
-       recommended = await db.any(`
+      recommended = await db.any(`
         SELECT c.* FROM challenges c 
         WHERE c.id NOT IN (
           SELECT challenge_id FROM user_challenges WHERE user_id = $1
@@ -216,93 +268,93 @@ app.get('/discover', auth, async (req, res) => {
       `, [userId]);
     }
 
-    res.render('pages/discover', { 
+    res.render('pages/discover', {
       user: req.session.user,
       allCategories,
       preferredCategories,
       recommended,
       completed
     });
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     res.redirect('/home');
   }
 });
 
 app.get('/create-challenge', auth, (req, res) => {
-    res.render('pages/create-challenge', {
-        user: req.session.user,
-        today: new Date().toISOString().split('T')[0]
-    });
+  res.render('pages/create-challenge', {
+    user: req.session.user,
+    today: new Date().toISOString().split('T')[0]
+  });
 });
 
 app.post('/create-challenge', auth, async (req, res) => {
-    try {
-        const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+  try {
+    const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
 
-        await db.none(`
+    await db.none(`
             INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
         `, [
-            category,
-            title,
-            description,
-            start_date,
-            end_date,
-            entry_type,
-            daily_target || 1
-        ]);
+      category,
+      title,
+      description,
+      start_date,
+      end_date,
+      entry_type,
+      daily_target || 1
+    ]);
 
-        res.redirect('/discover');
-    } catch (err) {
-        console.error(err);
-        res.render('pages/create-challenge', {
-            user: req.session.user,
-            today: new Date().toISOString().split('T')[0],
-            error: 'Failed to create challenge.'
-        });
-    }
+    res.redirect('/discover');
+  } catch (err) {
+    console.error(err);
+    res.render('pages/create-challenge', {
+      user: req.session.user,
+      today: new Date().toISOString().split('T')[0],
+      error: 'Failed to create challenge.'
+    });
+  }
 });
 
 app.post('/update-preferences', auth, async (req, res) => {
-    const userId = req.session.user.id;
-    let categories = req.body.categories || [];
-    if (!Array.isArray(categories)) categories = [categories];
+  const userId = req.session.user.id;
+  let categories = req.body.categories || [];
+  if (!Array.isArray(categories)) categories = [categories];
 
-    await db.none('DELETE FROM user_preferences WHERE user_id = $1', [userId]);
-    for(const cat of categories) {
-        await db.none('INSERT INTO user_preferences (user_id, category) VALUES ($1, $2)', [userId, cat]);
-    }
-    res.redirect('/discover');
+  await db.none('DELETE FROM user_preferences WHERE user_id = $1', [userId]);
+  for (const cat of categories) {
+    await db.none('INSERT INTO user_preferences (user_id, category) VALUES ($1, $2)', [userId, cat]);
+  }
+  res.redirect('/discover');
 });
 
 app.post('/join-challenge', auth, async (req, res) => {
-    const userId = req.session.user.id;
-    const challengeId = req.body.challenge_id;
-    try {
-      await db.none('INSERT INTO user_challenges (user_id, challenge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, challengeId]);
-    } catch(err) {
-      console.error(err);
-    }
-    res.redirect('/home');
+  const userId = req.session.user.id;
+  const challengeId = req.body.challenge_id;
+  try {
+    await db.none('INSERT INTO user_challenges (user_id, challenge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, challengeId]);
+  } catch (err) {
+    console.error(err);
+  }
+  res.redirect('/home');
 });
 
 app.get('/challenge/:id', auth, async (req, res) => {
-    try {
-        const challengeId = req.params.id;
-        const userId = req.session.user.id;
-        
-        const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id = $1', [challengeId]);
-        if (!challenge) return res.redirect('/home');
-        
-        const userChallenge = await db.oneOrNone('SELECT * FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
-        
-        let entries = [];
-        if (userChallenge) {
-            entries = await db.any('SELECT TO_CHAR(entry_date, \'YYYY-MM-DD\') as entry_date, amount, is_completed FROM challenge_entries WHERE user_challenge_id = $1 ORDER BY entry_date DESC', [userChallenge.id]);
-        }
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
 
-        const leaderboard = await db.any(`
+    const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id = $1', [challengeId]);
+    if (!challenge) return res.redirect('/home');
+
+    const userChallenge = await db.oneOrNone('SELECT * FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
+
+    let entries = [];
+    if (userChallenge) {
+      entries = await db.any('SELECT TO_CHAR(entry_date, \'YYYY-MM-DD\') as entry_date, amount, is_completed FROM challenge_entries WHERE user_challenge_id = $1 ORDER BY entry_date DESC', [userChallenge.id]);
+    }
+
+    const leaderboard = await db.any(`
             WITH today_entries AS (
                 SELECT user_challenge_id, SUM(amount) as today_amount, BOOL_OR(is_completed) as today_done
                 FROM challenge_entries 
@@ -328,49 +380,49 @@ app.get('/challenge/:id', auth, async (req, res) => {
             LIMIT 10
         `, [challengeId]);
 
-        res.render('pages/challenge', { 
-            user: req.session.user, 
-            challenge, 
-            userChallenge, 
-            entries,
-            leaderboard,
-            today: new Date().toISOString().split('T')[0]
-        });
-    } catch(err) {
-        console.error(err);
-        res.redirect('/home');
-    }
+    res.render('pages/challenge', {
+      user: req.session.user,
+      challenge,
+      userChallenge,
+      entries,
+      leaderboard,
+      today: new Date().toISOString().split('T')[0]
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
 });
 
 app.post('/challenge/:id/log', auth, async (req, res) => {
-    try {
-        const challengeId = req.params.id;
-        const userId = req.session.user.id;
-        const { date, amount, completed } = req.body;
-        
-        const userChallenge = await db.oneOrNone('SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
-        if (!userChallenge) return res.redirect('/home');
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
+    const { date, amount, completed } = req.body;
 
-        const isCompleted = completed === 'on';
-        const numAmount = amount ? parseFloat(amount) : 0;
+    const userChallenge = await db.oneOrNone('SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
+    if (!userChallenge) return res.redirect('/home');
 
-        await db.none(`
+    const isCompleted = completed === 'on';
+    const numAmount = amount ? parseFloat(amount) : 0;
+
+    await db.none(`
             INSERT INTO challenge_entries (user_challenge_id, entry_date, amount, is_completed)
             VALUES ($1, $2, $3, $4)
         `, [userChallenge.id, date, numAmount, isCompleted]);
 
-        res.redirect('/challenge/' + challengeId);
-    } catch(err) {
-        console.error(err);
-        res.redirect('/challenge/' + req.params.id);
-    }
+    res.redirect('/challenge/' + challengeId);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/challenge/' + req.params.id);
+  }
 });
 
 
 app.get('/profile', auth, async (req, res) => {
-    try {
-        const user = await db.one('SELECT id, username, email, profile_picture, created_at FROM users WHERE id = $1', [req.session.user.id]);
-        const counts = await db.oneOrNone(`
+  try {
+    const user = await db.one('SELECT id, username, email, profile_picture, created_at FROM users WHERE id = $1', [req.session.user.id]);
+    const counts = await db.oneOrNone(`
             SELECT
                 COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
                 COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) = 100) as completed_count
@@ -379,79 +431,79 @@ app.get('/profile', auth, async (req, res) => {
             WHERE uc.user_id = $1
         `, [user.id]);
 
-        const errorMessages = {
-            wrong_password: 'Current password is incorrect.',
-            password_mismatch: 'New passwords do not match.',
-            email_taken: 'That email is already in use.',
-            no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
-            server: 'Something went wrong. Please try again.'
-        };
-        const successMessages = {
-            password: 'Password changed successfully.',
-            email: 'Email updated successfully.',
-            picture: 'Profile picture updated.'
-        };
+    const errorMessages = {
+      wrong_password: 'Current password is incorrect.',
+      password_mismatch: 'New passwords do not match.',
+      email_taken: 'That email is already in use.',
+      no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
+      server: 'Something went wrong. Please try again.'
+    };
+    const successMessages = {
+      password: 'Password changed successfully.',
+      email: 'Email updated successfully.',
+      picture: 'Profile picture updated.'
+    };
 
-        res.render('pages/profile', {
-            user: req.session.user,
-            profileUser: user,
-            activeCount: counts ? counts.active_count : 0,
-            completedCount: counts ? counts.completed_count : 0,
-            flashError: errorMessages[req.query.error] || null,
-            flashSuccess: successMessages[req.query.success] || null,
-            openEdit: !!(req.query.error || req.query.success)
-        });
-    } catch(err) {
-        console.error(err);
-        res.redirect('/home');
-    }
+    res.render('pages/profile', {
+      user: req.session.user,
+      profileUser: user,
+      activeCount: counts ? counts.active_count : 0,
+      completedCount: counts ? counts.completed_count : 0,
+      flashError: errorMessages[req.query.error] || null,
+      flashSuccess: successMessages[req.query.success] || null,
+      openEdit: !!(req.query.error || req.query.success)
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
 });
 
 app.post('/profile/change-email', auth, async (req, res) => {
-    try {
-        const { new_email } = req.body;
-        const userId = req.session.user.id;
-        await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
-        req.session.user.email = new_email;
-        req.session.save(() => res.redirect('/profile?success=email'));
-    } catch (err) {
-        console.error(err);
-        res.redirect('/profile?error=email_taken');
-    }
+  try {
+    const { new_email } = req.body;
+    const userId = req.session.user.id;
+    await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
+    req.session.user.email = new_email;
+    req.session.save(() => res.redirect('/profile?success=email'));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/profile?error=email_taken');
+  }
 });
 
 app.post('/profile/change-password', auth, async (req, res) => {
-    try {
-        const { current_password, new_password, confirm_password } = req.body;
-        if (new_password !== confirm_password) {
-            return res.redirect('/profile?error=password_mismatch');
-        }
-        const userId = req.session.user.id;
-        const user = await db.one('SELECT password FROM users WHERE id = $1', [userId]);
-        const match = await bcrypt.compare(current_password, user.password);
-        if (!match) return res.redirect('/profile?error=wrong_password');
-        const hash = await bcrypt.hash(new_password, 10);
-        await db.none('UPDATE users SET password = $1 WHERE id = $2', [hash, userId]);
-        res.redirect('/profile?success=password');
-    } catch (err) {
-        console.error(err);
-        res.redirect('/profile?error=server');
+  try {
+    const { current_password, new_password, confirm_password } = req.body;
+    if (new_password !== confirm_password) {
+      return res.redirect('/profile?error=password_mismatch');
     }
+    const userId = req.session.user.id;
+    const user = await db.one('SELECT password FROM users WHERE id = $1', [userId]);
+    const match = await bcrypt.compare(current_password, user.password);
+    if (!match) return res.redirect('/profile?error=wrong_password');
+    const hash = await bcrypt.hash(new_password, 10);
+    await db.none('UPDATE users SET password = $1 WHERE id = $2', [hash, userId]);
+    res.redirect('/profile?success=password');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/profile?error=server');
+  }
 });
 
 app.post('/profile/upload-picture', auth, async (req, res) => {
-    try {
-        const { image_data } = req.body;
-        if (!image_data || !image_data.startsWith('data:image/')) {
-            return res.redirect('/profile?error=no_image');
-        }
-        await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
-        req.session.user.profile_picture = image_data;
-        req.session.save(() => res.redirect('/profile?success=picture'));
-    } catch (err) {
-        console.error(err);
-        res.redirect('/profile?error=server');
+  try {
+    const { image_data } = req.body;
+    if (!image_data || !image_data.startsWith('data:image/')) {
+      return res.redirect('/profile?error=no_image');
     }
+    await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
+    req.session.user.profile_picture = image_data;
+    req.session.save(() => res.redirect('/profile?success=picture'));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/profile?error=server');
+  }
 });
 
 app.get('/logout', auth, (req, res) => {
@@ -460,6 +512,39 @@ app.get('/logout', auth, (req, res) => {
   const message = 'Logout successful!';
   res.redirect('/login');
 
+});
+
+app.get('/admin/send-reminders', async (req, res) => {
+  // Send email based on database condition: challenge ending within 2 days
+  try {
+    const challengesEndingSoon = await db.any(`
+            SELECT c.id as challenge_id, c.title, c.end_date, u.email, u.username
+            FROM challenges c
+            JOIN user_challenges uc ON c.id = uc.challenge_id
+            JOIN users u ON uc.user_id = u.id
+            WHERE c.end_date <= CURRENT_DATE + INTERVAL '2 days'
+            AND c.end_date >= CURRENT_DATE
+        `);
+
+    let sentCount = 0;
+    for (const row of challengesEndingSoon) {
+      try {
+        await resend.emails.send({
+          from: 'onboarding@resend.abad.cc',
+          to: row.email,
+          subject: `Challenge Ending Soon: ${row.title}`,
+          html: `<p>Hi ${row.username},</p><p>Your challenge "<strong>${row.title}</strong>" is ending on ${new Date(row.end_date).toLocaleDateString()}. Keep it up!</p>`
+        });
+        sentCount++;
+      } catch (emailErr) {
+        console.error(`Failed to send to ${row.email}:`, emailErr);
+      }
+    }
+    res.json({ success: true, emailsSent: sentCount, totalEndingSoon: challengesEndingSoon.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 
