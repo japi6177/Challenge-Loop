@@ -16,7 +16,6 @@ const path = require('path');
 const pgp = require('pg-promise')(); //use pg-promise for database queries
 const bodyParser = require('body-parser'); 
 const bcrypt = require('bcryptjs'); //password encryption
-const axios = require('axios'); //send HTTP requests
 
 
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\
@@ -47,7 +46,7 @@ const hbs = handlebars.create({
 app.engine('hbs', hbs.engine);
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(bodyParser.json()); // specify the usage of JSON for parsing request body.
+app.use(bodyParser.json({ limit: '5mb' })); // specify the usage of JSON for parsing request body.
 
 
 //***  Database ***\\
@@ -86,6 +85,7 @@ app.use(
 app.use(
   bodyParser.urlencoded({
     extended: true,
+    limit: '5mb',
   })
 );
 
@@ -101,6 +101,13 @@ const auth = (req, res, next) => {
   next();
 };
 
+app.get('/welcome', (req, res) => {
+  res.json({status: 'success', message: 'Welcome!'});
+});
+
+app.get('/welcome', (req, res) => {
+  res.json({status: 'success', message: 'Welcome!'});
+});
 
 app.get('/', (req, res) => {
   res.redirect('/login');
@@ -121,7 +128,7 @@ app.post('/login', async (req, res) => {
     if (!match) {
       return res.render('pages/login', { loginError: 'Invalid password.' });
     }
-    req.session.user = { username: user.username, email: user.email, id: user.id };
+    req.session.user = { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture };
     req.session.save(() => res.redirect('/home'));
   } catch (err) {
     console.log(err);
@@ -136,13 +143,16 @@ app.get('/register', (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+      throw new Error('Missing required fields');
+    }
     const hash = await bcrypt.hash(password, 10);
     const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
     
     req.session.user = { username: user.username, email: user.email, id: user.id };
     req.session.save(() => res.redirect('/home'));
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     res.render('pages/login', { registerError: 'Registration failed. Username or email might already be taken.' });
   }
 });
@@ -224,6 +234,39 @@ app.get('/social', (req, res) => {
     layout: 'main',
     user: req.session.user
   });
+app.get('/create-challenge', auth, (req, res) => {
+    res.render('pages/create-challenge', {
+        user: req.session.user,
+        today: new Date().toISOString().split('T')[0]
+    });
+});
+
+app.post('/create-challenge', auth, async (req, res) => {
+    try {
+        const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+
+        await db.none(`
+            INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [
+            category,
+            title,
+            description,
+            start_date,
+            end_date,
+            entry_type,
+            daily_target || 1
+        ]);
+
+        res.redirect('/discover');
+    } catch (err) {
+        console.error(err);
+        res.render('pages/create-challenge', {
+            user: req.session.user,
+            today: new Date().toISOString().split('T')[0],
+            error: 'Failed to create challenge.'
+        });
+    }
 });
 
 app.post('/update-preferences', auth, async (req, res) => {
@@ -331,9 +374,9 @@ app.post('/challenge/:id/log', auth, async (req, res) => {
 
 app.get('/profile', auth, async (req, res) => {
     try {
-        const user = await db.one('SELECT * FROM users WHERE id = $1', [req.session.user.id]);
+        const user = await db.one('SELECT id, username, email, profile_picture, created_at FROM users WHERE id = $1', [req.session.user.id]);
         const counts = await db.oneOrNone(`
-            SELECT 
+            SELECT
                 COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
                 COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) = 100) as completed_count
             FROM user_challenges uc
@@ -341,15 +384,78 @@ app.get('/profile', auth, async (req, res) => {
             WHERE uc.user_id = $1
         `, [user.id]);
 
-        res.render('pages/profile', { 
-            user: req.session.user, 
+        const errorMessages = {
+            wrong_password: 'Current password is incorrect.',
+            password_mismatch: 'New passwords do not match.',
+            email_taken: 'That email is already in use.',
+            no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
+            server: 'Something went wrong. Please try again.'
+        };
+        const successMessages = {
+            password: 'Password changed successfully.',
+            email: 'Email updated successfully.',
+            picture: 'Profile picture updated.'
+        };
+
+        res.render('pages/profile', {
+            user: req.session.user,
             profileUser: user,
             activeCount: counts ? counts.active_count : 0,
-            completedCount: counts ? counts.completed_count : 0
+            completedCount: counts ? counts.completed_count : 0,
+            flashError: errorMessages[req.query.error] || null,
+            flashSuccess: successMessages[req.query.success] || null,
+            openEdit: !!(req.query.error || req.query.success)
         });
     } catch(err) {
         console.error(err);
         res.redirect('/home');
+    }
+});
+
+app.post('/profile/change-email', auth, async (req, res) => {
+    try {
+        const { new_email } = req.body;
+        const userId = req.session.user.id;
+        await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
+        req.session.user.email = new_email;
+        req.session.save(() => res.redirect('/profile?success=email'));
+    } catch (err) {
+        console.error(err);
+        res.redirect('/profile?error=email_taken');
+    }
+});
+
+app.post('/profile/change-password', auth, async (req, res) => {
+    try {
+        const { current_password, new_password, confirm_password } = req.body;
+        if (new_password !== confirm_password) {
+            return res.redirect('/profile?error=password_mismatch');
+        }
+        const userId = req.session.user.id;
+        const user = await db.one('SELECT password FROM users WHERE id = $1', [userId]);
+        const match = await bcrypt.compare(current_password, user.password);
+        if (!match) return res.redirect('/profile?error=wrong_password');
+        const hash = await bcrypt.hash(new_password, 10);
+        await db.none('UPDATE users SET password = $1 WHERE id = $2', [hash, userId]);
+        res.redirect('/profile?success=password');
+    } catch (err) {
+        console.error(err);
+        res.redirect('/profile?error=server');
+    }
+});
+
+app.post('/profile/upload-picture', auth, async (req, res) => {
+    try {
+        const { image_data } = req.body;
+        if (!image_data || !image_data.startsWith('data:image/')) {
+            return res.redirect('/profile?error=no_image');
+        }
+        await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
+        req.session.user.profile_picture = image_data;
+        req.session.save(() => res.redirect('/profile?success=picture'));
+    } catch (err) {
+        console.error(err);
+        res.redirect('/profile?error=server');
     }
 });
 
@@ -365,5 +471,6 @@ app.get('/logout', auth, (req, res) => {
 //-----------------------------------------------------------------------  Start Server  -----------------------------------------------------------------------\\
 
 // starting the server and keeping the connection open to listen for more requests
-app.listen(3000);
+
+module.exports = app.listen(3000);
 console.log('Server is listening on port 3000');

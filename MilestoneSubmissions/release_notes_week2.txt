@@ -1,0 +1,53 @@
+Week 2 Release Notes
+March 31st - April 6th, 2026
+
+This week we were able to make significant progress on all aspects of our projects, 
+most likely being one of the larger amounts of work we get done through this project. 
+Beforehand, we had only implemented set up such as the docker files, barebones website, 
+and barebones database into our project. Now, in the frontend and the backend of our 
+application we implemented many of the core features that our project needs 
+(login page, database connection, profile management, challenges, etc.)
+
+----------------------------------------
+
+Major Features
+- Full user authentication is implemented so that users can register and login
+- Hashed passwords for user data protection
+- Home page dashboard built and cleaned up
+- Active and completed challenges are shown to the user
+- Discover page is implemented with a filter so that the user can narrow down the challenges they would like to partake
+- User can join challenges and track some progress
+- Custom challenges option
+- Page for challenge detail which has a leaderboard section
+- Profile page that allows user to logout, or update any of their account information
+
+----------------------------------------
+
+Frontend
+- Basic pages were updated to full multi-page UI
+- Using Handlebars and Bootstrap, application is responsive and consistent
+- Layout issues are modified
+- Have a consistent style for the application
+- Interactive components for the users to input
+
+----------------------------------------
+
+Backend / Database
+- Frontend and backend are connected with Express routes
+- Database has been expanded connect to many more of the features such as challenges, logs, user preferences, user data
+- Relational tables and constraints
+- Progress tracking system within database
+
+----------------------------------------
+
+Testing
+- Mocha and Chai set up for testing
+- Create test file
+- Basic tests for /welcome
+
+----------------------------------------
+
+Other
+- README with project
+- Meeting notes, documentation, discussion
+- Wireframe

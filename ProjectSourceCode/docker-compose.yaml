@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:latest
     env_file: .env
+    expose:
+      - '5432'
     volumes:
       - challenge-loop:/var/lib/postgresql
       - ./src/init_data:/docker-entrypoint-initdb.d
@@ -18,7 +20,7 @@ services:
       - '3000:3000'
     volumes:
       - ./:/repository
-    command: 'npm start'
+    command: 'npm run testandrun'
 
 volumes:
   challenge-loop:
