@@ -1,23 +1,23 @@
 // ********************** Initialize server **********************************
 
-
 const server = require('../src/index.js'); //TODO: Make sure the path to your index.js is correctly added
 
 // ********************** Import Libraries ***********************************
 
 const chai = require('chai'); // Chai HTTP provides an interface for live integration testing of the API's.
-const chaiHttp = require('chai-http');
+const chaiHttpPlugin = require('chai-http').default || require('chai-http');
+const { request } = require('chai-http');
+
 chai.should();
-chai.use(chaiHttp);
-const { assert, expect } = chai;
+chai.use(chaiHttpPlugin);
+const {assert, expect} = chai;
 
 // ********************** DEFAULT WELCOME TESTCASE ****************************
 
 describe('Server!', () => {
   // Sample test case given to test / endpoint.
   it('Returns the default welcome message', done => {
-    chai
-      .request(server)
+    request.execute(server)
       .get('/welcome')
       .end((err, res) => {
         expect(res).to.have.status(200);
@@ -31,8 +31,7 @@ describe('Server!', () => {
 // *********************** TODO: WRITE 2 UNIT TESTCASES **************************
 describe('Testing Add User API', () => {
   it('positive : /register', done => {
-    chai
-      .request(server)
+    request.execute(server)
       .post('/register')
       .redirects(0) //This is necessary because the test returns status 200 otherwise. Idk why.
       .send({ username: `buh_${Date.now()}`, email: `test@s.abad.cc`, password: 'beach20' })
@@ -41,9 +40,8 @@ describe('Testing Add User API', () => {
         done();
       });
   });
-  it('Negative : /register. Checking invalid name', done => {
-    chai
-      .request(server)
+   it('Negative : /register. Checking invalid name', done => {
+    request.execute(server)
       .post('/register')
       .send({ username: 20, email: 'bogus', password: 5 })
       .end((err, res) => {
@@ -53,3 +51,40 @@ describe('Testing Add User API', () => {
       });
   });
 });
+
+describe('Login/Auth', () => {
+  it('Returns the login page', done => {
+    request.execute(server)
+      .get('/login')
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        // Should show a valid login page
+        // Contains "Enter the <span style="color: var(--primary);">Loop</span>"
+        assert.include(res.text, 'Enter the <span style="color: var(--primary);">Loop</span>');
+        done();
+      });
+  });
+  it('Creates a test user, or login as testuser', (done) => {
+    request.execute(server)
+      .post('/login')
+      .send({ username: 'testuser', password: 'password' })
+      .end((err, res) => {
+        // Check if the response text contains the "Invalid username" error message
+        if (res.text && res.text.includes('Invalid username.')) {
+          // User doesn't exist, proceed to register
+          request.execute(server)
+            .post('/register')
+            .send({ username: 'testuser', email: 'test@example.com', password: 'password' })
+            .end((err2, res2) => {
+              expect(res2).to.have.status(200);
+              done();
+            });
+        } else {
+          // User managed to login properly (redirected to /home)
+          expect(res).to.have.status(200);
+          done();
+        }
+      });
+  });
+});
+// ********************************************************************************
