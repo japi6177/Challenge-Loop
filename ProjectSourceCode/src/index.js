@@ -219,11 +219,24 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
-app.get('/social', (req, res) => {
-  res.render('pages/social', {
-    layout: 'main',
-    user: req.session.user
-  });
+//leaderboard placeholder for social page
+app.get('/social', auth, async (req, res) => {
+    try {
+        const leaderboard = [
+            { username: 'Alice', successful_days: 5, today_progress: 80 },
+            { username: 'Bob', successful_days: 3, today_progress: 60 },
+            { username: 'Charlie', successful_days: 7, today_progress: 100 }
+        ];
+
+        res.render('pages/social', {
+            layout: 'main',
+            user: req.session.user,
+            leaderboard
+        });
+    } catch (err) {
+        console.error(err);
+        res.redirect('/home');
+    }
 });
 
 app.post('/update-preferences', auth, async (req, res) => {

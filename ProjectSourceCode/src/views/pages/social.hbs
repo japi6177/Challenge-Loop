@@ -1,4 +1,4 @@
-<div class="social-layout">
+{{!-- <div class="social-layout">
   
   <!-- LEFT SIDE -->
   <div class="social-sidebar">
@@ -17,4 +17,29 @@
     <h2>Feed goes here</h2>
   </div>
 
+</div>  --}}
+
+{{#each leaderboard}}
+    <div class="d-flex flex-column p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex align-items-center mb-2">
+        <div class="fw-bold text-white-50 me-3" style="width: 20px;">#{{@index}}</div>
+        <div class="flex-grow-1 fw-bold text-white">{{this.username}}</div>
+        <div class="text-end">
+            <span class="fw-bold fs-5" style="color: var(--primary);">{{this.successful_days}}<span class="text-white-50 fs-6">/7</span></span>
+        </div>
+        </div>
+        <!-- Today Progress Bar -->
+        <div class="d-flex align-items-center">
+            <small class="text-white-50 fw-bold me-2" style="font-size:0.6rem; width:45px; letter-spacing:1px;">TODAY</small>
+            <div class="progress flex-grow-1 bg-dark" style="height: 6px; border-radius: 10px;">
+            <div class="progress-bar" role="progressbar" style="width: {{this.today_progress}}%; background: var(--secondary);" aria-valuenow="{{this.today_progress}}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <small class="ms-2 fw-bold" style="font-size:0.75rem; color: var(--secondary);">{{this.today_progress}}%</small>
+        </div>
+    </div>
+    {{/each}}
+    </div>
+    {{else}}
+    <p class="text-white-50">Nobody has recorded progress on this challenge yet. You could be first!</p>
+    {{/if}}
 </div>
