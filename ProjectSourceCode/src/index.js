@@ -249,11 +249,11 @@ app.get('/create-challenge', auth, async (req, res) => {
 
 app.post('/create-challenge', auth, async (req, res) => {
     try {
-        const { category_id, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+        const { category_id, title, description, start_date, end_date, entry_type, period_target, metric_name, number_of_intervals } = req.body;
 
         await db.none(`
-            INSERT INTO challenges (category_id, title, description, start_date, end_date, entry_type, daily_target)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO challenges (category_id, title, description, start_date, end_date, entry_type, period_target, metric_name, number_of_intervals)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `, [
             category_id,
             title,
@@ -261,7 +261,9 @@ app.post('/create-challenge', auth, async (req, res) => {
             start_date,
             end_date,
             entry_type,
-            daily_target || 1
+            period_target || 1,
+            metric_name || null,
+            number_of_intervals || 1
         ]);
 
         res.redirect('/discover');
@@ -324,10 +326,10 @@ app.get('/challenge/:id', auth, async (req, res) => {
                    COALESCE(up.progress, 0) as progress,
                    COALESCE(up.successful_days, 0) as successful_days,
                    CASE 
-                       WHEN c.entry_type = 'checkbox' THEN 
+                       WHEN c.entry_type = 1 THEN 
                            CASE WHEN COALESCE(te.today_done, false) THEN 100 ELSE 0 END
                        ELSE 
-                           LEAST(ROUND((COALESCE(te.today_amount, 0)::numeric / c.daily_target::numeric) * 100), 100)
+                           LEAST(ROUND((COALESCE(te.today_amount, 0)::numeric / c.period_target::numeric) * 100), 100)
                    END as today_progress
             FROM user_challenges uc 
             JOIN users u ON u.id = uc.user_id 

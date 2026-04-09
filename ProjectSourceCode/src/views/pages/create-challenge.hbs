@@ -35,24 +35,34 @@
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Entry Type</label>
           <select class="form-control bg-dark text-white border-secondary" name="entry_type" required>
-            <option value="checkbox">Checkbox</option>
-            <option value="amount">Amount</option>
+            <option value="1">Checkbox</option>
+            <option value="2">Amount</option>
           </select>
         </div>
 
         <div class="mb-3">
-          <label class="form-label text-white-50 small text-uppercase fw-bold">Daily Target</label>
-          <input type="number" step="0.01" class="form-control" name="daily_target" value="1" required>
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Period Target</label>
+          <input type="number" step="0.01" class="form-control" name="period_target" value="1" required>
         </div>
 
         <div class="mb-3">
-          <label class="form-label text-white-50 small text-uppercase fw-bold">Start Date</label>
-          <input type="date" class="form-control" name="start_date" value="{{today}}" required>
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Metric Name</label>
+          <input type="text" class="form-control" name="metric_name" placeholder="e.g. Pages, Cups, Meters">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Number of Intervals</label>
+          <input type="number" class="form-control" name="number_of_intervals" value="1" min="1" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Start Date & Time (Optional Time)</label>
+          <input type="datetime-local" class="form-control" name="start_date" required>
         </div>
 
         <div class="mb-4">
-          <label class="form-label text-white-50 small text-uppercase fw-bold">End Date</label>
-          <input type="date" class="form-control" name="end_date" required>
+          <label class="form-label text-white-50 small text-uppercase fw-bold">End Date & Time (Optional Time)</label>
+          <input type="datetime-local" class="form-control" name="end_date" required>
         </div>
 
         <button type="submit" class="btn btn-neon w-100">Create Challenge</button>

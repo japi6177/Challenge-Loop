@@ -22,8 +22,8 @@
           </div>
           
           <div style="flex: 1; min-width: 150px;">
-            {{#if (eq challenge.entry_type 'amount')}} <!-- We could use a standard hbs helper, but since we don't have them installed we will just let CSS handle visibility or fallback to HTML -->
-            <label class="form-label text-white-50 small text-uppercase fw-bold">Amount (Goal: {{challenge.daily_target}})</label>
+            {{#if (eq challenge.entry_type 2)}} <!-- We could use a standard hbs helper, but since we don't have them installed we will just let CSS handle visibility or fallback to HTML -->
+            <label class="form-label text-white-50 small text-uppercase fw-bold">Amount (Goal: {{challenge.period_target}})</label>
             <input type="number" step="0.01" class="form-control" name="amount" placeholder="e.g. 2.5">
             {{else}}
             <label class="form-label text-white-50 small text-uppercase fw-bold d-block">Did you complete it?</label>
@@ -46,7 +46,7 @@
         {{#each entries}}
         <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 px-0 d-flex justify-content-between align-items-center">
             <span class="text-white-50"><i class="fa-regular fa-calendar me-2"></i>{{this.entry_date}}</span>
-            {{#if (eq ../challenge.entry_type 'amount')}}
+            {{#if (eq ../challenge.entry_type 2)}}
               <span class="badge border border-light border-opacity-25 bg-dark px-3">{{this.amount}} recorded</span>
             {{else}}
               {{#if this.is_completed}}

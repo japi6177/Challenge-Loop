@@ -33,10 +33,12 @@ CREATE TABLE challenges (
     category_id INT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     title VARCHAR(100) NOT NULL,
     description TEXT,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    entry_type VARCHAR(20) NOT NULL DEFAULT 'checkbox',
-    daily_target NUMERIC DEFAULT 1,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    number_of_intervals INT NOT NULL DEFAULT 1,
+    period_target NUMERIC DEFAULT 1,
+    entry_type INT NOT NULL DEFAULT 1, -- 1 = checkbox, 2 = amount
+    metric_name VARCHAR(50),
     CONSTRAINT check_dates CHECK (end_date >= start_date)
 );
 
@@ -57,7 +59,7 @@ CREATE INDEX idx_user_challenges_challenge_id ON user_challenges(challenge_id);
 CREATE TABLE challenge_entries (
     id SERIAL PRIMARY KEY,
     user_challenge_id INT NOT NULL REFERENCES user_challenges(id) ON DELETE CASCADE,
-    entry_date DATE NOT NULL,
+    entry_date TIMESTAMP NOT NULL,
     amount NUMERIC DEFAULT 0,
     is_completed BOOLEAN DEFAULT false
 );
@@ -76,8 +78,8 @@ successful_days AS (
   FROM daily_sums ds
   JOIN user_challenges uc ON ds.user_challenge_id = uc.id
   JOIN challenges c ON uc.challenge_id = c.id
-  WHERE (c.entry_type = 'amount' AND ds.total_amount >= c.daily_target)
-     OR (c.entry_type = 'checkbox' AND ds.is_done)
+  WHERE (c.entry_type = 2 AND ds.total_amount >= c.period_target)
+     OR (c.entry_type = 1 AND ds.is_done)
   GROUP BY ds.user_challenge_id
 )
 SELECT uc.id as user_challenge_id, uc.user_id, uc.challenge_id, 
