@@ -14,17 +14,23 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Categories table
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
 -- User preferences table
 CREATE TABLE user_preferences (
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    category VARCHAR(50) NOT NULL,
-    PRIMARY KEY (user_id, category)
+    category_id INT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, category_id)
 );
 
 -- Challenges table
 CREATE TABLE challenges (
     id SERIAL PRIMARY KEY,
-    category VARCHAR(50) NOT NULL,
+    category_id INT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     title VARCHAR(100) NOT NULL,
     description TEXT,
     start_date DATE NOT NULL,

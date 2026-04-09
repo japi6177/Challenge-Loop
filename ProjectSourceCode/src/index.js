@@ -160,8 +160,8 @@ app.post('/register', async (req, res) => {
 app.get('/home', auth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const active = await db.any(`SELECT c.*, COALESCE(up.progress, 0) as progress, uc.id as join_id FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
-    const completed = await db.any(`SELECT c.* FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) = 100`, [userId]);
+    const active = await db.any(`SELECT c.*, cat.name as category, COALESCE(up.progress, 0) as progress, uc.id as join_id FROM challenges c JOIN categories cat ON c.category_id = cat.id JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
+    const completed = await db.any(`SELECT c.*, cat.name as category FROM challenges c JOIN categories cat ON c.category_id = cat.id JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) = 100`, [userId]);
     res.render('pages/home', { 
         user: req.session.user, 
         active, 
@@ -178,20 +178,22 @@ app.get('/home', auth, async (req, res) => {
 app.get('/discover', auth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const prefs = await db.any('SELECT category FROM user_preferences WHERE user_id = $1', [userId]);
+    const prefs = await db.any('SELECT cat.name as category FROM user_preferences up JOIN categories cat ON up.category_id = cat.id WHERE up.user_id = $1', [userId]);
     const preferredCategories = prefs.map(p => p.category);
 
     const popularity = await db.any(`
-      SELECT c.category, COUNT(uc.id) as popular_score 
-      FROM challenges c 
+      SELECT cat.name as category, COUNT(uc.id) as popular_score 
+      FROM categories cat 
+      LEFT JOIN challenges c ON cat.id = c.category_id
       LEFT JOIN user_challenges uc ON c.id = uc.challenge_id 
-      GROUP BY c.category 
-      ORDER BY popular_score DESC, c.category ASC
+      GROUP BY cat.name 
+      ORDER BY popular_score DESC, cat.name ASC
     `);
     const allCategories = popularity.map(p => p.category);
 
     const completed = await db.any(`
-      SELECT c.* FROM challenges c 
+      SELECT c.*, cat.name as category FROM challenges c 
+      JOIN categories cat ON c.category_id = cat.id
       JOIN user_challenges uc ON c.id = uc.challenge_id 
       LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
       WHERE uc.user_id = $1 AND COALESCE(up.progress, 0) = 100
@@ -200,16 +202,18 @@ app.get('/discover', auth, async (req, res) => {
     let recommended = [];
     if (preferredCategories.length > 0) {
       recommended = await db.any(`
-        SELECT c.*, COUNT(uc.challenge_id) as popularity 
+        SELECT c.*, cat.name as category, COUNT(uc.challenge_id) as popularity 
         FROM challenges c
+        JOIN categories cat ON c.category_id = cat.id
         LEFT JOIN user_challenges uc ON c.id = uc.challenge_id
-        WHERE c.category = ANY($1) AND c.id NOT IN (SELECT challenge_id FROM user_challenges WHERE user_id = $2)
-        GROUP BY c.id
+        WHERE cat.name = ANY($1) AND c.id NOT IN (SELECT challenge_id FROM user_challenges WHERE user_id = $2)
+        GROUP BY c.id, cat.name
         ORDER BY popularity DESC, c.id ASC
       `, [preferredCategories, userId]);
     } else {
        recommended = await db.any(`
-        SELECT c.* FROM challenges c 
+        SELECT c.*, cat.name as category FROM challenges c 
+        JOIN categories cat ON c.category_id = cat.id
         WHERE c.id NOT IN (
           SELECT challenge_id FROM user_challenges WHERE user_id = $1
         ) LIMIT 10
@@ -229,22 +233,29 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
-app.get('/create-challenge', auth, (req, res) => {
-    res.render('pages/create-challenge', {
-        user: req.session.user,
-        today: new Date().toISOString().split('T')[0]
-    });
+app.get('/create-challenge', auth, async (req, res) => {
+    try {
+        const categories = await db.any('SELECT * FROM categories ORDER BY name ASC');
+        res.render('pages/create-challenge', {
+            user: req.session.user,
+            today: new Date().toISOString().split('T')[0],
+            categories
+        });
+    } catch(err) {
+        console.error(err);
+        res.redirect('/home');
+    }
 });
 
 app.post('/create-challenge', auth, async (req, res) => {
     try {
-        const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+        const { category_id, title, description, start_date, end_date, entry_type, daily_target } = req.body;
 
         await db.none(`
-            INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
+            INSERT INTO challenges (category_id, title, description, start_date, end_date, entry_type, daily_target)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
         `, [
-            category,
+            category_id,
             title,
             description,
             start_date,
@@ -271,7 +282,7 @@ app.post('/update-preferences', auth, async (req, res) => {
 
     await db.none('DELETE FROM user_preferences WHERE user_id = $1', [userId]);
     for(const cat of categories) {
-        await db.none('INSERT INTO user_preferences (user_id, category) VALUES ($1, $2)', [userId, cat]);
+        await db.none('INSERT INTO user_preferences (user_id, category_id) SELECT $1, id FROM categories WHERE name = $2 LIMIT 1', [userId, cat]);
     }
     res.redirect('/discover');
 });
@@ -292,7 +303,7 @@ app.get('/challenge/:id', auth, async (req, res) => {
         const challengeId = req.params.id;
         const userId = req.session.user.id;
         
-        const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id = $1', [challengeId]);
+        const challenge = await db.oneOrNone('SELECT c.*, cat.name as category FROM challenges c JOIN categories cat ON c.category_id = cat.id WHERE c.id = $1', [challengeId]);
         if (!challenge) return res.redirect('/home');
         
         const userChallenge = await db.oneOrNone('SELECT * FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
