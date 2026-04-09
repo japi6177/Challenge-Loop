@@ -1,23 +1,4 @@
 {
-<<<<<<< HEAD
-  "name": "challenge-loop",
-  "main": "src/index.js",
-  "dependencies": {
-    "express": "latest",
-    "pg-promise": "latest",
-    "body-parser": "latest",
-    "express-session": "latest",
-    "express-handlebars": "latest",
-    "handlebars": "latest",
-    "bcryptjs": "latest"
-  },
-  "devDependencies": {
-    "nodemon": "latest",
-    "mocha": "latest",
-    "chai": "latest",
-    "chai-http": "latest",
-    "npm-run-all": "latest"
-=======
     "name": "challenge-loop",
     "main": "src/index.js",
     "dependencies": {
@@ -36,7 +17,6 @@
     "chai": "^4.2.0",
     "chai-http": "^4.3.0",
     "npm-run-all": "^4.1.5"
->>>>>>> b73a949 (Lab 10 finished, db wireframe added to milestones folder)
   },
   "scripts": {
     "prestart": "npm install",
@@ -44,8 +24,4 @@
     "test": "mocha",
     "testandrun": "npm run prestart && npm run test && npm start"
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> b73a949 (Lab 10 finished, db wireframe added to milestones folder)
