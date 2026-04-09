@@ -466,11 +466,6 @@ app.get('/logout', auth, (req, res) => {
 //-----------------------------------------------------------------------  Start Server  -----------------------------------------------------------------------\\
 
 // starting the server and keeping the connection open to listen for more requests
-<<<<<<< HEAD
-const server = app.listen(3000);
-console.log('Server is listening on port 3000');
-module.exports = server;
-=======
+
 module.exports = app.listen(3000);
 console.log('Server is listening on port 3000');
->>>>>>> b73a949 (Lab 10 finished, db wireframe added to milestones folder)
