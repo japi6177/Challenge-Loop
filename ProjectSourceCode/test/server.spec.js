@@ -33,7 +33,7 @@ describe('Testing Add User API', () => {
     request.execute(server)
       .post('/register')
       .redirects(0) //This is necessary because the test returns status 200 otherwise. Idk why.
-      .send({username: 'buh', email: 'boo@gmail.com', password: 'beach20'})
+      .send({username: `buh-${Date.now()}`, email: `boo-${Date.now()}@gmail.com`, password: 'beach20'})
       .end((err, res) => {
         expect(res).to.have.status(302); //Test that the response is positive by checking for a redirect code.
         done();
