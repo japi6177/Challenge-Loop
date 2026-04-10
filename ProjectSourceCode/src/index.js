@@ -105,16 +105,8 @@ app.get('/welcome', (req, res) => {
   res.json({status: 'success', message: 'Welcome!'});
 });
 
-app.get('/welcome', (req, res) => {
-  res.json({status: 'success', message: 'Welcome!'});
-});
-
 app.get('/', (req, res) => {
   res.redirect('/login');
-});
-
-app.get('/login', (req, res) => {
-  res.render('pages/login');
 });
 
 app.post('/login', async (req, res) => {
@@ -141,11 +133,39 @@ app.get('/register', (req, res) => {
 });
 
 app.post('/register', async (req, res) => {
+  
+  const usernameRegex = /^[a-zA-Z0-9_]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+  
   try {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
       throw new Error('Missing required fields');
     }
+
+    //Validate username
+    if (username.length < 8) {
+      throw new Error('Username must be at least 8 characters long.');
+    }
+    else if (!usernameRegex.test(username)) {
+      throw new Error('Username can only contain letters, numbers, and underscores.');
+    }
+
+    //validate email
+    if (!emailRegex.test(email)) {
+      throw new Error('Please enter a valid email address.');
+    }
+
+    //validate password
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters long.');
+    }
+    else if (!passwordRegex.test(password)) {
+      throw new Error('Password must include uppercase, lowercase, and a number.');
+    }
+
+
     const hash = await bcrypt.hash(password, 10);
     const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
     
@@ -153,7 +173,8 @@ app.post('/register', async (req, res) => {
     req.session.save(() => res.redirect('/home'));
   } catch (err) {
     // console.log(err);
-    res.render('pages/login', { registerError: 'Registration failed. Username or email might already be taken.' });
+    //I had to tack on the "registration failed" bit to every error message for the mocha tests. Be careful if you change it.
+    res.render('pages/login', { registerError: ('Registration failed. ' + err.message) ||'Registration failed. Username or email might already be taken.' });
   }
 });
 
@@ -342,6 +363,7 @@ app.get('/challenge/:id', auth, async (req, res) => {
     }
 });
 
+
 app.post('/challenge/:id/log', auth, async (req, res) => {
     try {
         const challengeId = req.params.id;
@@ -366,45 +388,71 @@ app.post('/challenge/:id/log', auth, async (req, res) => {
     }
 });
 
+//Overhauled /profile method to allow users to view any profile, based on the username in the URL.
+//Viewing a different person's profile doesn't allow you to edit it. Obviously.
+//Also, if there's no username provided, it defaults to your profile, per the standard /profile route below this one.
+app.get('/profile/:username', auth, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const profileUser = await db.oneOrNone(
+      'SELECT id, username, email, profile_picture, created_at FROM users WHERE username = $1',
+      [username]
+    );
 
-app.get('/profile', auth, async (req, res) => {
-    try {
-        const user = await db.one('SELECT id, username, email, profile_picture, created_at FROM users WHERE id = $1', [req.session.user.id]);
-        const counts = await db.oneOrNone(`
-            SELECT
-                COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
-                COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) = 100) as completed_count
-            FROM user_challenges uc
-            LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
-            WHERE uc.user_id = $1
-        `, [user.id]);
-
-        const errorMessages = {
-            wrong_password: 'Current password is incorrect.',
-            password_mismatch: 'New passwords do not match.',
-            email_taken: 'That email is already in use.',
-            no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
-            server: 'Something went wrong. Please try again.'
-        };
-        const successMessages = {
-            password: 'Password changed successfully.',
-            email: 'Email updated successfully.',
-            picture: 'Profile picture updated.'
-        };
-
-        res.render('pages/profile', {
-            user: req.session.user,
-            profileUser: user,
-            activeCount: counts ? counts.active_count : 0,
-            completedCount: counts ? counts.completed_count : 0,
-            flashError: errorMessages[req.query.error] || null,
-            flashSuccess: successMessages[req.query.success] || null,
-            openEdit: !!(req.query.error || req.query.success)
-        });
-    } catch(err) {
-        console.error(err);
-        res.redirect('/home');
+    if (!profileUser) {
+      return res.status(404).render('pages/404');
     }
+
+    //This variable controls your permissions on this page. Please don't mess with it unless you need to.
+    const isMe = req.session.user.username === profileUser.username;
+
+    //Query to return challenges associated with the user
+    const counts = await db.oneOrNone(`
+      SELECT
+        COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
+        COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) = 100) as completed_count
+      FROM user_challenges uc
+      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
+      WHERE uc.user_id = $1
+    `, [profileUser.id]);
+
+    //Error messages for modifying your account.
+    const errorMessages = {
+      wrong_password: 'Current password is incorrect.',
+      password_mismatch: 'New passwords do not match.',
+      email_taken: 'That email is already in use.',
+      no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
+      server: 'Something went wrong. Please try again.'
+    };
+    //Non-error messages for doing that
+    const successMessages = {
+      password: 'Password changed successfully.',
+      email: 'Email updated successfully.',
+      picture: 'Profile picture updated.'
+    };
+
+    res.render('pages/profile', {
+      user: req.session.user,              // logged-in user
+      profileUser,                         // profile being viewed
+      isMe,                        // 🔑 key flag for your UI
+      activeCount: counts ? counts.active_count : 0,
+      completedCount: counts ? counts.completed_count : 0,
+      flashError: isMe ? errorMessages[req.query.error] || null : null,
+      flashSuccess: isMe ? successMessages[req.query.success] || null : null,
+      openEdit: isMe && !!(req.query.error || req.query.success)
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
+});
+
+app.get('/profile', auth, (req, res) => {
+    
+  const username = req.session.user.username;
+  res.redirect(`/profile/${username}`);
 });
 
 app.post('/profile/change-email', auth, async (req, res) => {
