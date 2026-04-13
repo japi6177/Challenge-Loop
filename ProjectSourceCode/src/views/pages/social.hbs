@@ -1,45 +1,112 @@
-{{!-- <div class="social-layout">
-  
+<div class="social-layout">
+
   <!-- LEFT SIDE -->
   <div class="social-sidebar">
-    <div class="glass-card text-center">
-      <h1 class="fw-bold">Profile Picture</h1>
-      <p class="text-white-50">Bio: This is the social page.</p>
+
+    <div class="glass-card text-center profile-card">
+      <div class="profile-pic mb-3">
+        <i class="fa-solid fa-user fs-1 p-4 rounded-circle"
+           style="background: rgba(255,255,255,0.05); color: var(--primary);">
+        </i>
+      </div>
+
+      <h5 class="fw-bold mb-2">{{user.username}}</h5>
+
+      <button type="button"
+              class="btn btn-neon w-100"
+              data-bs-toggle="modal"
+              data-bs-target="#statsModal">
+        View Stats
+      </button>
     </div>
 
-    <div class="personal-stats text-center mt-3">
-      <h4 class="fw-bold">Stats</h4>
+  </div>
+
+  <!-- MIDDLE: FEED -->
+  <div class="social-feed">
+    <div class="glass-card p-4">
+      <h3 class="fw-bold mb-3">Activity Feed</h3>
+
+      <div class="text-center p-4 rounded"
+           style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15);">
+        <i class="fa-solid fa-stream fs-2 mb-3 text-white-50 opacity-50"></i>
+        <p class="text-white-50 m-0">
+          Your activity feed will appear here.
+        </p>
+      </div>
     </div>
   </div>
 
-  <!-- RIGHT SIDE (future content) -->
+  <!-- RIGHT SIDE -->
   <div class="social-main">
-    <h2>Feed goes here</h2>
+    <!--friend leaderboard -->
+  <div class="social-main">
+    <div class="glass-card p-4">
+  <h3 class="fw-bold mb-3">Friends Leaderboard</h3>
+
+  {{#if friendsLeaderboard.length}}
+    <div class="d-flex flex-column gap-3">
+      {{#each friendsLeaderboard}}
+        <div class="p-3 rounded">
+          {{this.username}}
+        </div>
+      {{/each}}
+    </div>
+  {{else}}
+    <div class="text-center p-4 rounded"
+         style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15);">
+      <i class="fa-solid fa-users fs-2 mb-3 text-white-50 opacity-50"></i>
+      <p class="text-white-50 m-0">
+        friend leaderboard will appear here.
+      </p>
+    </div>
+  {{/if}}
+</div>
   </div>
 
-</div>  --}}
-
-{{#each leaderboard}}
-    <div class="d-flex flex-column p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
-        <div class="d-flex align-items-center mb-2">
-        <div class="fw-bold text-white-50 me-3" style="width: 20px;">#{{@index}}</div>
-        <div class="flex-grow-1 fw-bold text-white">{{this.username}}</div>
-        <div class="text-end">
-            <span class="fw-bold fs-5" style="color: var(--primary);">{{this.successful_days}}<span class="text-white-50 fs-6">/7</span></span>
-        </div>
-        </div>
-        <!-- Today Progress Bar -->
-        <div class="d-flex align-items-center">
-            <small class="text-white-50 fw-bold me-2" style="font-size:0.6rem; width:45px; letter-spacing:1px;">TODAY</small>
-            <div class="progress flex-grow-1 bg-dark" style="height: 6px; border-radius: 10px;">
-            <div class="progress-bar" role="progressbar" style="width: {{this.today_progress}}%; background: var(--secondary);" aria-valuenow="{{this.today_progress}}" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-            <small class="ms-2 fw-bold" style="font-size:0.75rem; color: var(--secondary);">{{this.today_progress}}%</small>
-        </div>
-    </div>
-    {{/each}}
-    </div>
-    {{else}}
-    <p class="text-white-50">Nobody has recorded progress on this challenge yet. You could be first!</p>
-    {{/if}}
 </div>
+
+  </div>
+
+</div>
+
+
+<!--profile modal -->
+<div class="modal fade" id="statsModal" tabindex="-1" aria-hidden="true" data-bs-theme="dark">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card p-0 overflow-hidden" style="background: var(--bg-color);">
+      
+      <div class="modal-header border-bottom border-light border-opacity-10">
+        <h5 class="modal-title fw-bold text-white">Your Stats</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="row text-center g-3">
+          <div class="col-6">
+            <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.03);">
+              <h2 class="fw-bold mb-1" style="color: var(--primary);">{{activeCount}}</h2>
+              <small class="text-white-50 text-uppercase">Active Challenges</small>
+            </div>
+          </div>
+
+          <div class="col-6">
+            <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.03);">
+              <h2 class="fw-bold mb-1" style="color: var(--primary);">{{completedCount}}</h2>
+              <small class="text-white-50 text-uppercase">Completed</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 rounded-4 text-center" style="background: rgba(255,255,255,0.03);">
+          <span class="text-white-50 small text-uppercase">Account Created</span>
+          <h5 class="m-0 mt-2">
+            <span class="local-date fw-bold" data-date="{{user.created_at}}"></span>
+          </h5>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+

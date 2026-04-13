@@ -89,25 +89,32 @@
       z-index: -1;
       pointer-events: none;
     }
-/*css for social page*/
-.social-layout {
-  display: flex;
-  gap: 30px;
-  align-items: flex-start;
-}
 
-/* LEFT SIDE */
-.social-sidebar {
-  width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+    /*css for social page*/
+  .social-layout {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+  }
 
-/* RIGHT SIDE */
-.social-main {
-  flex: 1; /* takes remaining space */
-}
+  .social-sidebar {
+    width: 280px;
+  }
+
+  .profile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .social-feed {
+    flex: 2;   
+  }
+
+  .social-main {
+    flex: 1;
+  }
+  
   </style>
   <!-- HTMX Integration for Dynamic Routing -->
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>

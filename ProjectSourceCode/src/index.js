@@ -229,13 +229,12 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
-
-//leaderboard placeholder for social page
-app.get('/social', (req, res) => {
+app.get('/social', auth, (req, res) => {
   res.render('pages/social', {
     layout: 'main',
-    user: req.session.user
-  })});
+    user: req.session.user,
+    friendsLeaderboard: []
+})});
 
 app.get('/create-challenge', auth, (req, res) => {
     res.render('pages/create-challenge', {
