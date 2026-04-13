@@ -17,7 +17,10 @@ const pgp = require('pg-promise')(); //use pg-promise for database queries
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs'); //password encryption
 const { Resend } = require('resend'); // email client
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
 
 
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\
@@ -297,19 +300,48 @@ app.get('/create-challenge', auth, (req, res) => {
 
 app.post('/create-challenge', auth, async (req, res) => {
   try {
-    const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+    let { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+
+    title = title ? title.trim() : '';
+    description = description ? description.trim() : '';
+
+    if (!category || !title || !start_date || !end_date || !entry_type) {
+      return res.render('pages/create-challenge', {
+        user: req.session.user,
+        today: new Date().toISOString().split('T')[0],
+        error: 'Please fill in all required fields.'
+      });
+    }
+
+    if (end_date < start_date) {
+      return res.render('pages/create-challenge', {
+        user: req.session.user,
+        today: new Date().toISOString().split('T')[0],
+        error: 'End date must be on or after the start date.'
+      });
+    }
+
+    daily_target = daily_target ? parseFloat(daily_target) : 1;
+
+    if (daily_target <= 0) {
+      return res.render('pages/create-challenge', {
+        user: req.session.user,
+        today: new Date().toISOString().split('T')[0],
+        error: 'Daily target must be greater than 0.'
+      });
+    }
 
     await db.none(`
-            INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [
+      INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [
       category,
       title,
       description,
       start_date,
       end_date,
       entry_type,
-      daily_target || 1
+      daily_target
     ]);
 
     res.redirect('/discover');
