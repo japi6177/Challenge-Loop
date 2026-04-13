@@ -281,6 +281,13 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
+app.get('/social', auth, (req, res) => {
+  res.render('pages/social', {
+    layout: 'main',
+    user: req.session.user,
+    friendsLeaderboard: []
+})});
+
 app.get('/create-challenge', auth, (req, res) => {
   res.render('pages/create-challenge', {
     user: req.session.user,
