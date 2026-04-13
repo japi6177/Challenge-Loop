@@ -393,6 +393,18 @@ app.get('/challenge/:id', auth, async (req, res) => {
       entries = await db.any('SELECT TO_CHAR(entry_date, \'YYYY-MM-DD\') as entry_date, amount, is_completed FROM challenge_entries WHERE user_challenge_id = $1 ORDER BY entry_date DESC', [userChallenge.id]);
     }
 
+    const comments = await db.any(`
+      SELECT cc.id,
+              cc.comment,
+              cc.created_at,
+              u.username,
+              u.profile_picture
+      FROM challenge_comments cc
+      JOIN users u ON cc.user_id = u.id
+      WHERE cc.challenge_id = $1
+      ORDER BY cc.created_at DESC
+    `, [challengeId]);
+
     const leaderboard = await db.any(`
             WITH today_entries AS (
                 SELECT user_challenge_id, SUM(amount) as today_amount, BOOL_OR(is_completed) as today_done
@@ -425,6 +437,7 @@ app.get('/challenge/:id', auth, async (req, res) => {
       userChallenge,
       entries,
       leaderboard,
+      comments,
       today: new Date().toISOString().split('T')[0]
     });
   } catch (err) {
@@ -449,6 +462,39 @@ app.post('/challenge/:id/log', auth, async (req, res) => {
             INSERT INTO challenge_entries (user_challenge_id, entry_date, amount, is_completed)
             VALUES ($1, $2, $3, $4)
         `, [userChallenge.id, date, numAmount, isCompleted]);
+
+    res.redirect('/challenge/' + challengeId);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/challenge/' + req.params.id);
+  }
+});
+
+app.post('/challenge/:id/comment', auth, async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
+    let { comment } = req.body;
+
+    comment = comment ? comment.trim() : '';
+
+    if (!comment) {
+      return res.redirect('/challenge/' + challengeId);
+    }
+
+    const userChallenge = await db.oneOrNone(
+      'SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2',
+      [userId, challengeId]
+    );
+
+    if (!userChallenge) {
+      return res.redirect('/challenge/' + challengeId);
+    }
+
+    await db.none(`
+      INSERT INTO challenge_comments (challenge_id, user_id, comment)
+      VALUES ($1, $2, $3)
+    `, [challengeId, userId, comment]);
 
     res.redirect('/challenge/' + challengeId);
   } catch (err) {
