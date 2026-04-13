@@ -56,6 +56,18 @@ CREATE TABLE challenge_entries (
     is_completed BOOLEAN DEFAULT false
 );
 
+-- Comments for challenges 
+CREATE TABLE challenge_comments (
+    id SERIAL PRIMARY KEY,
+    challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_challenge_comments_challenge_id ON challenge_comments(challenge_id);
+CREATE INDEX idx_challenge_comments_user_id ON challenge_comments(user_id);
+
 -- Pre-baked SQL Query generating dynamic live progress tracking metrics efficiently
 CREATE VIEW user_progress AS
 WITH daily_sums AS (
