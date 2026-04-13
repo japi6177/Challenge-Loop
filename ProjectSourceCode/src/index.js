@@ -150,12 +150,16 @@ app.post('/email-login', async (req, res) => {
     req.session.emailCode = code;
     req.session.emailCodeEmail = email;
 
-    await resend.emails.send({
-      from: 'onboarding@resend.abad.cc',
-      to: email, // Free tier allows sending only to verified domains, but we'll use it this way
-      subject: 'Your Sign In Code - Challenge Loop',
-      html: `<h2>Welcome to Challenge Loop</h2><p>Your sign in code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>`
-    });
+    if (resend) {
+      await resend.emails.send({
+        from: 'onboarding@resend.abad.cc',
+        to: email, // Free tier allows sending only to verified domains, but we'll use it this way
+        subject: 'Your Sign In Code - Challenge Loop',
+        html: `<h2>Welcome to Challenge Loop</h2><p>Your sign in code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>`
+      });
+    } else {
+      console.log(`[DEV] Email login code for ${email}: ${code}`);
+    }
 
     req.session.save(() => res.redirect('/verify-code'));
   } catch (err) {
@@ -614,12 +618,16 @@ app.get('/admin/send-reminders', async (req, res) => {
     let sentCount = 0;
     for (const row of challengesEndingSoon) {
       try {
-        await resend.emails.send({
-          from: 'onboarding@resend.abad.cc',
-          to: row.email,
-          subject: `Challenge Ending Soon: ${row.title}`,
-          html: `<p>Hi ${row.username},</p><p>Your challenge "<strong>${row.title}</strong>" is ending on ${new Date(row.end_date).toLocaleDateString()}. Keep it up!</p>`
-        });
+        if (resend) {
+          await resend.emails.send({
+            from: 'onboarding@resend.abad.cc',
+            to: row.email,
+            subject: `Challenge Ending Soon: ${row.title}`,
+            html: `<p>Hi ${row.username},</p><p>Your challenge "<strong>${row.title}</strong>" is ending on ${new Date(row.end_date).toLocaleDateString()}. Keep it up!</p>`
+          });
+        } else {
+          console.log(`[DEV] Skipping reminder email to ${row.email} for challenge "${row.title}" (no RESEND_API_KEY set)`);
+        }
         sentCount++;
       } catch (emailErr) {
         console.error(`Failed to send to ${row.email}:`, emailErr);
