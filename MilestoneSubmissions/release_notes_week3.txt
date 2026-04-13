@@ -1,0 +1,42 @@
+Week 3 Release Notes
+April 7th - April 12th, 2026
+
+This week we communicated some differences on how we thought we were gonna proceed with some of the 
+features in our project. We resolved some issues, updated some features we already had, and planned
+many new features we are going to make. Compared to last week, we focused more on refining this time,
+rather than building a lot of code.
+
+----------------------------------------
+
+Major Features
+- Further development of social page
+- Backend functionality on social features
+- Implemented basic email related functions
+- App stability improved
+
+----------------------------------------
+
+Frontend
+- Completed frontend of social page
+- UI improvements, cleanup of site
+- Fixed merge conflicts
+
+----------------------------------------
+
+Backend / Database
+- Began implementing backend for email and social page
+- Security vulnerabilities updated and Fixed
+- Packages and dependencies updated
+
+----------------------------------------
+
+Testing
+- Test case match new Moch setup
+- Additional tests
+- Negative tests for registration
+- Test coverage improved
+
+----------------------------------------
+
+Other
+- Completed Lab 10 requirements
