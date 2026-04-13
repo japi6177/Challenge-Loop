@@ -1,0 +1,29 @@
+<div class="row w-100 mt-4 align-items-stretch justify-content-center g-4 px-md-4">
+  <div class="col-12 text-center mb-2">
+    <h1 class="display-3 fw-bolder mb-2" style="letter-spacing:-1px;">Verify Your <span style="color: var(--primary);">Email</span></h1>
+    <p class="text-white-50 lead">Check your inbox for a secure sign-in code.</p>
+  </div>
+
+  <div class="col-12 col-md-5 d-flex">
+    <div class="glass-card w-100 p-4 p-md-5 d-flex flex-column" style="background: rgba(144, 0, 255, 0.02); border-color: rgba(144, 0, 255, 0.1);">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold fs-2 text-white">Enter Sign In Code</h2>
+        <p class="text-white-50 small">We sent a 6-digit code to your email address.</p>
+      </div>
+      
+      {{#if error}}
+      <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.4); color: #ff6b81;" role="alert">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>{{error}}
+      </div>
+      {{/if}}
+
+      <form action="/verify-code" method="POST" class="mt-auto mb-auto">
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Sign In Code</label>
+          <input type="text" class="form-control form-control-lg text-center" name="code" required placeholder="123456" maxlength="6" pattern="\d{6}" style="letter-spacing: 4px; font-size: 1.5rem;">
+        </div>
+        <button type="submit" class="btn btn-outline-light w-100 mt-2 py-3 fw-bold shadow-sm">Verify & Log In <i class="fa-solid fa-arrow-right ms-1"></i></button>
+      </form>
+    </div>
+  </div>
+</div>
