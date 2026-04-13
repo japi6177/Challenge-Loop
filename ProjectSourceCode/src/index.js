@@ -292,7 +292,9 @@ app.get('/social', auth, (req, res) => {
   res.render('pages/social', {
     layout: 'main',
     user: req.session.user,
-    friendsLeaderboard: []
+    friendsLeaderboard: [],
+    activeCount,
+    completedCount
 })});
 
 app.get('/create-challenge', auth, (req, res) => {
