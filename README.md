@@ -33,14 +33,12 @@ RESEND_API_KEY=re_your_api_key_here
 - **`SESSION_SECRET`**: A secret key used by `express-session` to encrypt session data.
 - **`RESEND_API_KEY`** *(optional)*: API key for [Resend](https://resend.com) used to send email login codes and challenge reminders. If omitted, the app runs normally but emails are skipped — verification codes are printed to the server console instead (useful for local development).
 
-### Setting up Resend (email)
+### Setting up Resend (email) (dont do this if you are not forking)
 
 1. Create a free account at [resend.com](https://resend.com).
 2. Go to **API Keys** in the Resend dashboard and create a new key.
 3. Copy the key and add it to your `.env` file as `RESEND_API_KEY=re_...`.
-4. *(Optional)* Add and verify a sending domain in the Resend dashboard if you want to send from a custom address instead of the default `onboarding@resend.dev`.
+4. Add and verify a sending domain in the Resend dashboard and update all the from emails in `index.js`.
 
 > **Local development without email:** If you leave `RESEND_API_KEY` unset, the app will still start and run. When the email-login flow is triggered, the one-time code will be printed to the server console so you can complete sign-in without a real email account.
-  
-# LINK
-tbd
+
