@@ -58,8 +58,8 @@ app.use(bodyParser.json({ limit: '5mb' })); // specify the usage of JSON for par
 
 // Database configuration
 const dbConfig = {
-  host: 'db',
-  port: 5432,
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
   database: process.env.POSTGRES_DB,
   user: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD
