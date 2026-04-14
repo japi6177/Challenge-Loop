@@ -288,12 +288,25 @@ app.get('/discover', auth, async (req, res) => {
   }
 });
 
-app.get('/social', auth, (req, res) => {
-  res.render('pages/social', {
-    layout: 'main',
-    user: req.session.user,
-    friendsLeaderboard: []
-})});
+app.get('/social', auth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const active = await db.any(`SELECT c.*, COALESCE(up.progress, 0) as progress, uc.id as join_id FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
+    const completed = await db.any(`SELECT c.* FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) = 100`, [userId]);
+
+    res.render('pages/social', {
+      layout: 'main',
+      user: req.session.user,
+      friendsLeaderboard: [],
+      activeCount: active.length,
+      completedCount: completed.length
+    });
+    
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
+});
 
 app.get('/create-challenge', auth, (req, res) => {
   res.render('pages/create-challenge', {
