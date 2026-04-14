@@ -7,7 +7,7 @@
 
 //-----------------------------------------------------------------------  Dependencies  -----------------------------------------------------------------------\\
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+// require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const express = require('express'); //Use node express
 const app = express();
 const session = require('express-session'); //create session object
