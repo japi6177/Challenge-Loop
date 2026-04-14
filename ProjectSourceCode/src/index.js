@@ -14,6 +14,7 @@ const session = require('express-session'); //create session object
 const handlebars = require('express-handlebars'); //enable express to use handlebars
 const Handlebars = require('handlebars'); //include templating engine for handlebars
 const path = require('path');
+const fs = require('fs');
 const pgp = require('pg-promise')(); //use pg-promise for database queries
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs'); //password encryption
@@ -21,6 +22,30 @@ const { Resend } = require('resend'); // email client
 let resend = null;
 if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY);
+}
+
+
+// Check if the db is empty and if it is then run the init_data files
+async function initDbIfEmpty(database) {
+  try {
+    const tableExists = await database.oneOrNone(
+      `SELECT to_regclass('public.users') AS exists`
+    );
+    if (tableExists && tableExists.exists) {
+      console.log('Database already initialized, skipping init_data.');
+      return;
+    }
+    console.log('Database is empty — running init_data scripts...');
+    const createSql = fs.readFileSync(path.join(__dirname, 'init_data', 'create.sql'), 'utf8');
+    const insertSql = fs.readFileSync(path.join(__dirname, 'init_data', 'insert.sql'), 'utf8');
+    await database.none(createSql);
+    console.log('  ✔ create.sql executed');
+    await database.none(insertSql);
+    console.log('  ✔ insert.sql executed');
+    console.log('Database initialization complete.');
+  } catch (err) {
+    console.error('Database initialization failed:', err.message || err);
+  }
 }
 
 
@@ -69,9 +94,10 @@ const dbConfig = {
 //Connect to the database
 const db = pgp(dbConfig);
 db.connect()
-  .then(obj => {
+  .then(async obj => {
     console.log('Database connection successful');
     obj.done();
+    await initDbIfEmpty(db);
   })
   .catch(error => {
     console.log('ERROR:', error.message || error);
