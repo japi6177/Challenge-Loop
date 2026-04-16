@@ -35,7 +35,7 @@ describe('Testing Add User API', () => {
       .request(server)
       .post('/register')
       .redirects(0) //This is necessary because the test returns status 200 otherwise. Idk why.
-      .send({username: 'buh', email: 'boo@gmail.com', password: 'beach20'})
+      .send({username: 'wwwwwwwwww', email: 'boo@gmail.com', password: 'Beach2000!'})
       .end((err, res) => {
         expect(res).to.have.status(302); //Test that the response is positive by checking for a redirect code.
         done();
@@ -45,7 +45,7 @@ describe('Testing Add User API', () => {
     chai
       .request(server)
       .post('/register')
-      .send({username: 20, email: 'bogus', password: 5})
+      .send({username: 'buh', email: 'bogus', password: '5'})
       .end((err, res) => {
         expect(res).to.have.status(200);
         expect(res.text).to.include('Registration failed'); //Test that the negative response re-renders the page with the error message in hbs 
