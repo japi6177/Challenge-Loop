@@ -92,19 +92,13 @@
           </form>
         </div>
 
-        <!-- Change Password -->
-        <div>
-          <h6 class="text-uppercase fw-bold mb-3" style="color: var(--primary); font-size: 0.75rem; letter-spacing: 1px;">
-            <i class="fa-solid fa-lock me-2"></i>Change Password
+        <!-- Delete Account -->
+        <div class="mt-4 pt-4 border-top border-danger border-opacity-25">
+          <h6 class="text-uppercase fw-bold mb-3" style="color: #ff6b81; font-size: 0.75rem; letter-spacing: 1px;">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>Danger Zone
           </h6>
-          <form method="POST" action="/profile/change-password">
-            <input type="password" name="current_password" class="form-control mb-2"
-              placeholder="Current password" required>
-            <input type="password" name="new_password" class="form-control mb-2"
-              placeholder="New password" minlength="8" required>
-            <input type="password" name="confirm_password" class="form-control mb-3"
-              placeholder="Confirm new password" required>
-            <button type="submit" class="btn btn-neon w-100 rounded-pill">Change Password</button>
+          <form method="POST" action="/profile/delete-account" onsubmit="return confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.');">
+            <button type="submit" class="btn btn-outline-danger w-100 rounded-pill">Delete Account</button>
           </form>
         </div>
 

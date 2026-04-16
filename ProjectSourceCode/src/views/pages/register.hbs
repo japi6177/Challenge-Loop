@@ -1,31 +1,24 @@
 <div class="glass-card col-12 col-md-6 col-lg-4 w-100 mx-auto" style="max-width: 450px;">
   <div class="text-center mb-4">
-    <h2 class="fw-bold fs-1">Start Your Journey</h2>
-    <p class="text-white-50">Create an account to join the loop.</p>
+    <h2 class="fw-bold fs-1">Almost There!</h2>
+    <p class="text-white-50">It looks like you're new here. Pick a username to continue.</p>
   </div>
   
-  {{#if error}}
+  {{#if registerError}}
   <div class="alert alert-danger" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.4); color: #ff6b81;" role="alert">
-    <i class="fa-solid fa-circle-exclamation me-2"></i>{{error}}
+    <i class="fa-solid fa-circle-exclamation me-2"></i>{{registerError}}
   </div>
   {{/if}}
 
   <form action="/register" method="POST">
-    <div class="mb-3">
+    <input type="hidden" name="email" value="{{email}}">
+    <div class="mb-5">
       <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
       <input type="text" class="form-control" name="username" required placeholder="Pick a username">
     </div>
-    <div class="mb-3">
-      <label class="form-label text-white-50 small text-uppercase fw-bold">Email Address</label>
-      <input type="email" class="form-control" name="email" required placeholder="name@example.com">
-    </div>
-    <div class="mb-4">
-      <label class="form-label text-white-50 small text-uppercase fw-bold">Password</label>
-      <input type="password" class="form-control" name="password" required placeholder="Create a password">
-    </div>
-    <button type="submit" class="btn btn-neon w-100 mt-2">Sign Up</button>
+    <button type="submit" class="btn btn-neon w-100 mt-2">Send Verification Code</button>
   </form>
   <div class="text-center mt-5">
-    <small class="text-white-50">Already have an account? <a href="/login" class="fw-semibold" style="color: var(--primary); text-decoration: none;">Log in</a></small>
+    <small class="text-white-50">Not you? <a href="/login" class="fw-semibold" style="color: var(--primary); text-decoration: none;">Go back</a></small>
   </div>
 </div>
