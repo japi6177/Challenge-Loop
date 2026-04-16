@@ -27,37 +27,7 @@ if (process.env.RESEND_API_KEY) {
 }
 
 
-// Check if the db is empty and if it is then run the init_data files
-async function initDbIfEmpty(database) {
-  try {
-    const tableExists = await database.oneOrNone(
-      `SELECT to_regclass('public.users') AS exists`
-    );
-    if (tableExists && tableExists.exists) {
-      console.log('Database already initialized, skipping init_data.');
-    } else {
-      console.log('Database is empty — running init_data scripts...');
-      const createSql = fs.readFileSync(path.join(__dirname, 'init_data', 'create.sql'), 'utf8');
-      const insertSql = fs.readFileSync(path.join(__dirname, 'init_data', 'insert.sql'), 'utf8');
-      await database.none(createSql);
-      console.log('  ✔ create.sql executed');
-      await database.none(insertSql);
-      console.log('  ✔ insert.sql executed');
-      console.log('Database initialization complete.');
-    }
-
-    // Ensure user_logouts exists even if DB was already initialized
-    await database.none(`
-      CREATE TABLE IF NOT EXISTS user_logouts (
-          email VARCHAR(100) PRIMARY KEY,
-          logout_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log('  ✔ user_logouts table ensured');
-  } catch (err) {
-    console.error('Database initialization failed:', err.message || err);
-  }
-}
+const { runMigrations } = require('./init_data/migration');
 
 
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\
@@ -124,7 +94,7 @@ db.connect()
   .then(async obj => {
     console.log('Database connection successful');
     obj.done();
-    await initDbIfEmpty(db);
+    await runMigrations(db, process.env.DB_MIGRATION_STRATEGY || 0);
   })
   .catch(error => {
     console.log('ERROR:', error.message || error);
