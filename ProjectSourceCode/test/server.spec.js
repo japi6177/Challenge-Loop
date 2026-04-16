@@ -34,7 +34,7 @@ describe('Testing Add User API', () => {
     request.execute(server)
       .post('/register')
       .redirects(0) //This is necessary because the test returns status 200 otherwise. Idk why.
-      .send({ username: `buh_${Date.now()}`, email: `test@s.abad.cc`, password: 'beach20' })
+      .send({ username: `buhbuhbuh98`, email: 'boo@gmail.com', password: 'Beach2000!'})
       .end((err, res) => {
         expect(res).to.have.status(302); //Test that the response is positive by checking for a redirect code.
         done();
@@ -67,14 +67,14 @@ describe('Login/Auth', () => {
   it('Creates a test user, or login as testuser', (done) => {
     request.execute(server)
       .post('/login')
-      .send({ username: 'testuser', password: 'password' })
+      .send({ username: 'testuser', password: 'Password1!' })
       .end((err, res) => {
         // Check if the response text contains the "Invalid username" error message
         if (res.text && res.text.includes('Invalid username.')) {
           // User doesn't exist, proceed to register
           request.execute(server)
             .post('/register')
-            .send({ username: 'testuser', email: 'test@example.com', password: 'password' })
+            .send({ username: 'testuser', email: 'test@example.com', password: 'Password1!' })
             .end((err2, res2) => {
               expect(res2).to.have.status(200);
               done();
