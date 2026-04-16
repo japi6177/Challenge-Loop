@@ -38,7 +38,23 @@ const hbs = handlebars.create({
         if (cat === 'Productivity') return 'fa-briefcase';
         if (cat === 'Educational') return 'fa-book-open';
         return 'fa-star';
-    }
+    },
+    iconForType: function(type) {
+        if (type === 'daily') return 'fa-sun';
+        if (type === 'weekly') return 'fa-calendar-week';
+        if (type === 'monthly') return 'fa-calendar';
+        if (type === 'group') return 'fa-users';
+        return 'fa-flag';
+    },
+    labelForType: function(type) {
+        if (type === 'daily') return 'Daily';
+        if (type === 'weekly') return 'Weekly';
+        if (type === 'monthly') return 'Monthly';
+        if (type === 'group') return 'Group';
+        return type;
+    },
+    lt: function(a, b) { return Number(a) < Number(b); },
+    lte: function(a, b) { return Number(a) <= Number(b); }
   }
 });
 
@@ -157,15 +173,45 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// Helper: compute hours remaining until end of a challenge's end_date (23:59:59 local)
+function hoursUntilEndOfDay(endDate) {
+    const end = new Date(endDate);
+    // Treat end_date as local midnight, challenge ends at 23:59:59 that day
+    end.setHours(23, 59, 59, 999);
+    return (end - new Date()) / (1000 * 60 * 60);
+}
+
 app.get('/home', auth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const active = await db.any(`SELECT c.*, COALESCE(up.progress, 0) as progress, uc.id as join_id FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
+    const active = await db.any(`SELECT c.*, COALESCE(up.progress, 0) as progress, COALESCE(up.total_days, 7) as total_days, uc.id as join_id FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
     const completed = await db.any(`SELECT c.* FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) = 100`, [userId]);
-    res.render('pages/home', { 
-        user: req.session.user, 
-        active, 
-        completedCount: completed.length, 
+
+    const reminders = [];
+    for (const ch of active) {
+        const hoursLeft = hoursUntilEndOfDay(ch.end_date);
+        const endMs = (() => { const e = new Date(ch.end_date); e.setHours(23,59,59,999); return e.getTime(); })();
+        ch.end_timestamp = endMs;
+        ch.hours_remaining = Math.max(0, hoursLeft);
+
+        if (hoursLeft > 0 && hoursLeft <= 1) {
+            ch.reminder_level = '1h';
+            reminders.push({ title: ch.title, id: ch.id, level: '1h', hoursLeft: hoursLeft });
+        } else if (hoursLeft > 1 && hoursLeft <= 12) {
+            ch.reminder_level = '12h';
+            reminders.push({ title: ch.title, id: ch.id, level: '12h', hoursLeft: hoursLeft });
+        } else if (hoursLeft > 12 && hoursLeft <= 24) {
+            ch.reminder_level = '24h';
+            reminders.push({ title: ch.title, id: ch.id, level: '24h', hoursLeft: hoursLeft });
+        }
+        ch.show_countdown = hoursLeft > 0 && hoursLeft <= 24;
+    }
+
+    res.render('pages/home', {
+        user: req.session.user,
+        active,
+        reminders: reminders.length ? reminders : null,
+        completedCount: completed.length,
         activeCount: active.length,
         today: new Date().toISOString().split('T')[0]
     });
@@ -238,11 +284,11 @@ app.get('/create-challenge', auth, (req, res) => {
 
 app.post('/create-challenge', auth, async (req, res) => {
     try {
-        const { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
+        const { category, title, description, start_date, end_date, entry_type, daily_target, challenge_type } = req.body;
 
         await db.none(`
-            INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target, challenge_type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [
             category,
             title,
@@ -250,7 +296,8 @@ app.post('/create-challenge', auth, async (req, res) => {
             start_date,
             end_date,
             entry_type,
-            daily_target || 1
+            daily_target || 1,
+            challenge_type || 'weekly'
         ]);
 
         res.redirect('/discover');
@@ -328,13 +375,22 @@ app.get('/challenge/:id', auth, async (req, res) => {
             LIMIT 10
         `, [challengeId]);
 
-        res.render('pages/challenge', { 
-            user: req.session.user, 
-            challenge, 
-            userChallenge, 
+        const endOfDay = new Date(challenge.end_date);
+        endOfDay.setHours(23, 59, 59, 999);
+        const totalDays = Math.round((new Date(challenge.end_date) - new Date(challenge.start_date)) / (1000 * 60 * 60 * 24)) + 1;
+        const hoursLeft = hoursUntilEndOfDay(challenge.end_date);
+
+        res.render('pages/challenge', {
+            user: req.session.user,
+            challenge,
+            userChallenge,
             entries,
             leaderboard,
-            today: new Date().toISOString().split('T')[0]
+            today: new Date().toISOString().split('T')[0],
+            total_days: totalDays,
+            end_timestamp: endOfDay.getTime(),
+            hours_remaining: Math.max(0, hoursLeft),
+            show_countdown: hoursLeft > 0 && hoursLeft <= 24
         });
     } catch(err) {
         console.error(err);
