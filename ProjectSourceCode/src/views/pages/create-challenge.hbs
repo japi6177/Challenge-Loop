@@ -2,7 +2,7 @@
   <div class="col-md-8 col-lg-6">
     <div class="glass-card p-5">
       <h2 class="fw-bold mb-4 text-center">Create a Custom Challenge</h2>
-      <p class="text-white-50 text-center mb-4">Design your own weekly challenge and add it to the loop.</p>
+      <p class="text-white-50 text-center mb-4">Design your own challenge and add it to the loop.</p>
 
       {{#if error}}
       <div class="alert alert-danger" role="alert">
@@ -11,7 +11,45 @@
       {{/if}}
 
       <form action="/create-challenge" method="POST">
-        
+
+        <div class="mb-3">
+          <label class="form-label text-white-50 small text-uppercase fw-bold">Challenge Type</label>
+          <div class="row g-2" id="type-selector">
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_daily" value="daily" autocomplete="off">
+              <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_daily" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
+                <i class="fa-solid fa-sun fs-4" style="color: var(--primary);"></i>
+                <span class="fw-bold small">Daily</span>
+                <span class="text-white-50" style="font-size:0.7rem;">1 day</span>
+              </label>
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_weekly" value="weekly" autocomplete="off" checked>
+              <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_weekly" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
+                <i class="fa-solid fa-calendar-week fs-4" style="color: var(--primary);"></i>
+                <span class="fw-bold small">Weekly</span>
+                <span class="text-white-50" style="font-size:0.7rem;">7 days</span>
+              </label>
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_monthly" value="monthly" autocomplete="off">
+              <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_monthly" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
+                <i class="fa-solid fa-calendar fs-4" style="color: var(--primary);"></i>
+                <span class="fw-bold small">Monthly</span>
+                <span class="text-white-50" style="font-size:0.7rem;">~30 days</span>
+              </label>
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_group" value="group" autocomplete="off">
+              <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_group" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
+                <i class="fa-solid fa-users fs-4" style="color: var(--secondary);"></i>
+                <span class="fw-bold small">Group</span>
+                <span class="text-white-50" style="font-size:0.7rem;">Custom</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Category</label>
           <select class="form-control bg-dark text-white border-secondary" name="category" required>
@@ -35,8 +73,8 @@
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Entry Type</label>
           <select class="form-control bg-dark text-white border-secondary" name="entry_type" required>
-            <option value="checkbox">Checkbox</option>
-            <option value="amount">Amount</option>
+            <option value="checkbox">Checkbox (done / not done)</option>
+            <option value="amount">Amount (track a quantity)</option>
           </select>
         </div>
 
@@ -45,15 +83,18 @@
           <input type="number" step="0.01" class="form-control" name="daily_target" value="1" required>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label text-white-50 small text-uppercase fw-bold">Start Date</label>
-          <input type="date" class="form-control" name="start_date" value="{{today}}" required>
+        <div class="row g-3 mb-4">
+          <div class="col-6">
+            <label class="form-label text-white-50 small text-uppercase fw-bold">Start Date</label>
+            <input type="date" class="form-control" name="start_date" id="start_date" value="{{today}}" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label text-white-50 small text-uppercase fw-bold">End Date</label>
+            <input type="date" class="form-control" name="end_date" id="end_date" required>
+          </div>
         </div>
 
-        <div class="mb-4">
-          <label class="form-label text-white-50 small text-uppercase fw-bold">End Date</label>
-          <input type="date" class="form-control" name="end_date" required>
-        </div>
+        <div id="date-hint" class="text-white-50 small mb-4 text-center" style="display:none;"></div>
 
         <button type="submit" class="btn btn-neon w-100">Create Challenge</button>
       </form>
@@ -70,4 +111,79 @@
     background-color: #111 !important;
     color: white !important;
   }
+  .btn-check:checked + .type-btn {
+    border-color: var(--primary) !important;
+    background: rgba(202, 255, 0, 0.08) !important;
+    box-shadow: 0 0 12px rgba(202, 255, 0, 0.2);
+  }
+  #type_group:checked + .type-btn {
+    border-color: var(--secondary) !important;
+    background: rgba(144, 0, 255, 0.08) !important;
+    box-shadow: 0 0 12px rgba(144, 0, 255, 0.2);
+  }
 </style>
+
+<script>
+(function() {
+  const startInput = document.getElementById('start_date');
+  const endInput   = document.getElementById('end_date');
+  const hint       = document.getElementById('date-hint');
+
+  function toYMD(d) {
+    return d.toISOString().split('T')[0];
+  }
+
+  function applyDates(type) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    let start, end;
+
+    if (type === 'daily') {
+      start = today;
+      end   = today;
+      endInput.readOnly = true;
+      startInput.readOnly = true;
+      hint.style.display = 'block';
+      hint.textContent = 'Daily challenges last exactly 1 day (today).';
+    } else if (type === 'weekly') {
+      // Mon–Sun of current week
+      const day = today.getDay(); // 0=Sun
+      const diffToMon = (day === 0) ? -6 : 1 - day;
+      start = new Date(today); start.setDate(today.getDate() + diffToMon);
+      end   = new Date(start); end.setDate(start.getDate() + 6);
+      endInput.readOnly = true;
+      startInput.readOnly = true;
+      hint.style.display = 'block';
+      hint.textContent = 'Weekly challenges run Mon – Sun of the current week.';
+    } else if (type === 'monthly') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      endInput.readOnly = true;
+      startInput.readOnly = true;
+      hint.style.display = 'block';
+      hint.textContent = 'Monthly challenges run from the 1st to the last day of this month.';
+    } else {
+      // group — free custom range
+      start = today;
+      end   = new Date(today); end.setDate(today.getDate() + 13);
+      endInput.readOnly = false;
+      startInput.readOnly = false;
+      hint.style.display = 'block';
+      hint.textContent = 'Group challenges have a custom date range — adjust as needed.';
+    }
+
+    startInput.value = toYMD(start);
+    endInput.value   = toYMD(end);
+  }
+
+  // Wire up radio buttons
+  document.querySelectorAll('input[name="challenge_type"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      applyDates(this.value);
+    });
+  });
+
+  // Set initial state (weekly is checked by default)
+  applyDates('weekly');
+})();
+</script>

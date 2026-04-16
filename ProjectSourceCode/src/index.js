@@ -7,38 +7,62 @@
 
 //-----------------------------------------------------------------------  Dependencies  -----------------------------------------------------------------------\\
 
-const express = require('express'); //Use node express
+const express = require('express');
 const app = express();
-const session = require('express-session'); //create session object
-const handlebars = require('express-handlebars'); //enable express to use handlebars
-const Handlebars = require('handlebars'); //include templating engine for handlebars
+const session = require('express-session');
+const handlebars = require('express-handlebars');
+const Handlebars = require('handlebars');
 const path = require('path');
-const pgp = require('pg-promise')(); //use pg-promise for database queries
+const fs = require('fs');
+const pgp = require('pg-promise')();
 const bodyParser = require('body-parser');
-const bcrypt = require('bcryptjs'); //password encryption
-const { Resend } = require('resend'); // email client
+const bcrypt = require('bcryptjs');
+const { Resend } = require('resend');
+
 let resend = null;
 if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY);
 }
 
 
+//-----------------------------------------------------------------------  DB Init  -----------------------------------------------------------------------\\
+
+async function initDbIfEmpty(database) {
+  try {
+    const tableExists = await database.oneOrNone(
+      `SELECT to_regclass('public.users') AS exists`
+    );
+
+    if (tableExists && tableExists.exists) {
+      console.log('Database already initialized.');
+      return;
+    }
+
+    console.log('Running init scripts...');
+    const createSql = fs.readFileSync(path.join(__dirname, 'init_data', 'create.sql'), 'utf8');
+    const insertSql = fs.readFileSync(path.join(__dirname, 'init_data', 'insert.sql'), 'utf8');
+
+    await database.none(createSql);
+    await database.none(insertSql);
+
+    console.log('DB initialized.');
+  } catch (err) {
+    console.error('DB init failed:', err);
+  }
+}
+
+
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\
 
-//***  Handlebars  ***\\
-
-// Create `ExpressHandlebars` instance and configure the layouts and partials dir.
+// Handlebars
 const hbs = handlebars.create({
   extname: 'hbs',
   layoutsDir: __dirname + '/views/layouts',
   partialsDir: __dirname + '/views/partials',
   helpers: {
-    eq: function (a, b) { return a === b; },
-    includes: function (arr, val) {
-      if (!Array.isArray(arr)) return false;
-      return arr.includes(val);
-    },
-    iconForCategory: function (cat) {
+    eq: (a, b) => a === b,
+    includes: (arr, val) => Array.isArray(arr) && arr.includes(val),
+    iconForCategory: cat => {
       if (cat === 'Fitness') return 'fa-dumbbell';
       if (cat === 'Productivity') return 'fa-briefcase';
       if (cat === 'Educational') return 'fa-book-open';
@@ -47,124 +71,116 @@ const hbs = handlebars.create({
   }
 });
 
-// Register `hbs` as our view engine using its bound `engine()` function.
 app.engine('hbs', hbs.engine);
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(bodyParser.json({ limit: '5mb' })); // specify the usage of JSON for parsing request body.
+
+app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 
 
-//***  Database ***\\
-
-// Database configuration
+// Database
 const dbConfig = {
-  host: 'db',
-  port: 5432,
+  host: process.env.DB_HOST || 'db',
+  port: process.env.DB_PORT || 5432,
   database: process.env.POSTGRES_DB,
   user: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD
 };
 
-//Connect to the database
 const db = pgp(dbConfig);
+
 db.connect()
-  .then(obj => {
-    console.log('Database connection successful');
+  .then(async obj => {
+    console.log('Database connected');
     obj.done();
+    await initDbIfEmpty(db);
   })
-  .catch(error => {
-    console.log('ERROR:', error.message || error);
-  });
+  .catch(err => console.error(err));
 
 
-//***  Session Variables  **\\
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    saveUninitialized: false,
-    resave: false,
-  })
-);
-
-app.use(
-  bodyParser.urlencoded({
-    extended: true,
-    limit: '5mb',
-  })
-);
+// Session
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  saveUninitialized: false,
+  resave: false
+}));
 
 
-//------------------------------------------------------------------------  API Routes  ------------------------------------------------------------------------\\
+//-----------------------------------------------------------------------  Auth Middleware  -----------------------------------------------------------------------\\
 
-//Check session variable
 const auth = (req, res, next) => {
-  if (!req.session.user) {
-    // Default to login page.
-    return res.redirect('/login');
-  }
+  if (!req.session.user) return res.redirect('/login');
   next();
 };
 
-app.get('/welcome', (req, res) => {
-  res.json({ status: 'success', message: 'Welcome!' });
-});
 
-app.get('/', (req, res) => {
-  res.redirect('/login');
-});
+//-----------------------------------------------------------------------  Routes  -----------------------------------------------------------------------\\
+
+app.get('/', (req, res) => res.redirect('/login'));
 
 app.get('/login', (req, res) => {
   res.render('pages/login');
 });
 
+
+app.get('/welcome', (req, res) => {
+  res.json({ status: 'success', message: 'Welcome!' });
+});
+
+
+//---------------- LOGIN ----------------//
+
 app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
-    if (!user) {
-      return res.render('pages/login', { loginError: 'Invalid username.' });
-    }
+    const user = await db.oneOrNone('SELECT * FROM users WHERE username=$1', [username]);
+
+    if (!user) return res.render('pages/login', { loginError: 'Invalid username.' });
+
     const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.render('pages/login', { loginError: 'Invalid password.' });
-    }
-    req.session.user = { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture };
+    if (!match) return res.render('pages/login', { loginError: 'Invalid password.' });
+
+    req.session.user = user;
     req.session.save(() => res.redirect('/home'));
+
   } catch (err) {
-    console.log(err);
-    res.render('pages/login', { loginError: 'An error occurred during login.' });
+    res.render('pages/login', { loginError: 'Login error.' });
   }
 });
+
+
+//---------------- EMAIL LOGIN ----------------//
 
 app.post('/email-login', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
+    const user = await db.oneOrNone('SELECT * FROM users WHERE email=$1', [email]);
+
     if (!user) {
-      return res.render('pages/login', { loginError: 'Email not found. Please register first.' });
+      return res.render('pages/login', { loginError: 'Email not found.' });
     }
 
-    // Generate 6 digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+
     req.session.emailCode = code;
     req.session.emailCodeEmail = email;
 
     if (resend) {
       await resend.emails.send({
-        from: 'onboarding@resend.abad.cc',
-        to: email, // Free tier allows sending only to verified domains, but we'll use it this way
-        subject: 'Your Sign In Code - Challenge Loop',
-        html: `<h2>Welcome to Challenge Loop</h2><p>Your sign in code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>`
+        from: 'onboarding@resend.dev',
+        to: email,
+        subject: 'Login Code',
+        html: `<h2>${code}</h2>`
       });
     } else {
-      console.log(`[DEV] Email login code for ${email}: ${code}`);
+      console.log(`[DEV CODE]: ${code}`);
     }
 
-    req.session.save(() => res.redirect('/verify-code'));
+    res.redirect('/verify-code');
+
   } catch (err) {
-    console.log(err);
-    res.render('pages/login', { loginError: 'Error sending email. Check your API key or limits.' });
+    res.render('pages/login', { loginError: 'Email error.' });
   }
 });
 
@@ -174,478 +190,114 @@ app.get('/verify-code', (req, res) => {
 });
 
 app.post('/verify-code', async (req, res) => {
-  const { code } = req.body;
-  if (!req.session.emailCode || !req.session.emailCodeEmail) {
-    return res.redirect('/login');
-  }
-
-  if (code === req.session.emailCode) {
-    try {
-      const user = await db.one('SELECT * FROM users WHERE email = $1', [req.session.emailCodeEmail]);
-      req.session.user = { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture };
-      delete req.session.emailCode;
-      delete req.session.emailCodeEmail;
-      req.session.save(() => res.redirect('/home'));
-    } catch (err) {
-      console.error(err);
-      res.render('pages/verify-code', { error: 'Error logging in.' });
-    }
+  if (req.body.code === req.session.emailCode) {
+    const user = await db.one('SELECT * FROM users WHERE email=$1', [req.session.emailCodeEmail]);
+    req.session.user = user;
+    res.redirect('/home');
   } else {
     res.render('pages/verify-code', { error: 'Invalid code.' });
   }
 });
 
-app.get('/register', (req, res) => {
-  res.redirect('/login');
-});
+
+//---------------- REGISTER ----------------//
 
 app.post('/register', async (req, res) => {
+  const usernameRegex = /^[a-zA-Z0-9_]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+
   try {
     const { username, email, password } = req.body;
+
     if (!username || !email || !password) {
       throw new Error('Missing required fields');
     }
-    const hash = await bcrypt.hash(password, 10);
-    const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
 
-    req.session.user = { username: user.username, email: user.email, id: user.id };
-    req.session.save(() => res.redirect('/home'));
+    if (username.length < 8) throw new Error('Username must be at least 8 characters.');
+    if (!usernameRegex.test(username)) throw new Error('Invalid username.');
+    if (!emailRegex.test(email)) throw new Error('Invalid email.');
+    if (password.length < 8) throw new Error('Password too short.');
+    if (!passwordRegex.test(password)) throw new Error('Weak password.');
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const user = await db.one(
+      'INSERT INTO users(username,email,password) VALUES($1,$2,$3) RETURNING id,username,email',
+      [username, email, hash]
+    );
+
+    req.session.user = user;
+    res.redirect('/home');
+
   } catch (err) {
-    // console.log(err);
-    res.render('pages/login', { registerError: 'Registration failed. Username or email might already be taken.' });
+    res.render('pages/login', {
+      registerError: 'Registration failed. ' + err.message
+    });
   }
 });
+
+
+//---------------- HOME ----------------//
 
 app.get('/home', auth, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const active = await db.any(`SELECT c.*, COALESCE(up.progress, 0) as progress, uc.id as join_id FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) < 100`, [userId]);
-    const completed = await db.any(`SELECT c.* FROM challenges c JOIN user_challenges uc ON c.id=uc.challenge_id LEFT JOIN user_progress up ON uc.id=up.user_challenge_id WHERE uc.user_id=$1 AND COALESCE(up.progress, 0) = 100`, [userId]);
+
+    const active = await db.any(`SELECT * FROM challenges c 
+      JOIN user_challenges uc ON c.id=uc.challenge_id
+      WHERE uc.user_id=$1`, [userId]);
+
     res.render('pages/home', {
       user: req.session.user,
       active,
-      completedCount: completed.length,
       activeCount: active.length,
       today: new Date().toISOString().split('T')[0]
     });
-  } catch (err) {
-    console.error(err);
-    res.render('pages/home', { user: req.session.user, active: [], completedCount: 0, activeCount: 0, today: new Date().toISOString().split('T')[0] });
+
+  } catch {
+    res.render('pages/home', { user: req.session.user, active: [] });
   }
 });
 
-app.get('/discover', auth, async (req, res) => {
+
+//---------------- PROFILE ----------------//
+
+app.get('/profile/:username', auth, async (req, res) => {
   try {
-    const userId = req.session.user.id;
-    const prefs = await db.any('SELECT category FROM user_preferences WHERE user_id = $1', [userId]);
-    const preferredCategories = prefs.map(p => p.category);
-
-    const popularity = await db.any(`
-      SELECT c.category, COUNT(uc.id) as popular_score 
-      FROM challenges c 
-      LEFT JOIN user_challenges uc ON c.id = uc.challenge_id 
-      GROUP BY c.category 
-      ORDER BY popular_score DESC, c.category ASC
-    `);
-    const allCategories = popularity.map(p => p.category);
-
-    const completed = await db.any(`
-      SELECT c.* FROM challenges c 
-      JOIN user_challenges uc ON c.id = uc.challenge_id 
-      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
-      WHERE uc.user_id = $1 AND COALESCE(up.progress, 0) = 100
-    `, [userId]);
-
-    let recommended = [];
-    if (preferredCategories.length > 0) {
-      recommended = await db.any(`
-        SELECT c.*, COUNT(uc.challenge_id) as popularity 
-        FROM challenges c
-        LEFT JOIN user_challenges uc ON c.id = uc.challenge_id
-        WHERE c.category = ANY($1) AND c.id NOT IN (SELECT challenge_id FROM user_challenges WHERE user_id = $2)
-        GROUP BY c.id
-        ORDER BY popularity DESC, c.id ASC
-      `, [preferredCategories, userId]);
-    } else {
-      recommended = await db.any(`
-        SELECT c.* FROM challenges c 
-        WHERE c.id NOT IN (
-          SELECT challenge_id FROM user_challenges WHERE user_id = $1
-        ) LIMIT 10
-      `, [userId]);
-    }
-
-    res.render('pages/discover', {
-      user: req.session.user,
-      allCategories,
-      preferredCategories,
-      recommended,
-      completed
-    });
-  } catch (err) {
-    console.error(err);
-    res.redirect('/home');
-  }
-});
-
-app.get('/social', auth, (req, res) => {
-  res.render('pages/social', {
-    layout: 'main',
-    user: req.session.user,
-    friendsLeaderboard: [],
-    activeCount,
-    completedCount
-})});
-
-app.get('/create-challenge', auth, (req, res) => {
-  res.render('pages/create-challenge', {
-    user: req.session.user,
-    today: new Date().toISOString().split('T')[0]
-  });
-});
-
-app.post('/create-challenge', auth, async (req, res) => {
-  try {
-    let { category, title, description, start_date, end_date, entry_type, daily_target } = req.body;
-
-    title = title ? title.trim() : '';
-    description = description ? description.trim() : '';
-
-    if (!category || !title || !start_date || !end_date || !entry_type) {
-      return res.render('pages/create-challenge', {
-        user: req.session.user,
-        today: new Date().toISOString().split('T')[0],
-        error: 'Please fill in all required fields.'
-      });
-    }
-
-    if (end_date < start_date) {
-      return res.render('pages/create-challenge', {
-        user: req.session.user,
-        today: new Date().toISOString().split('T')[0],
-        error: 'End date must be on or after the start date.'
-      });
-    }
-
-    daily_target = daily_target ? parseFloat(daily_target) : 1;
-
-    if (daily_target <= 0) {
-      return res.render('pages/create-challenge', {
-        user: req.session.user,
-        today: new Date().toISOString().split('T')[0],
-        error: 'Daily target must be greater than 0.'
-      });
-    }
-
-    await db.none(`
-      INSERT INTO challenges (category, title, description, start_date, end_date, entry_type, daily_target)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, [
-      category,
-      title,
-      description,
-      start_date,
-      end_date,
-      entry_type,
-      daily_target
-    ]);
-
-    res.redirect('/discover');
-  } catch (err) {
-    console.error(err);
-    res.render('pages/create-challenge', {
-      user: req.session.user,
-      today: new Date().toISOString().split('T')[0],
-      error: 'Failed to create challenge.'
-    });
-  }
-});
-
-app.post('/update-preferences', auth, async (req, res) => {
-  const userId = req.session.user.id;
-  let categories = req.body.categories || [];
-  if (!Array.isArray(categories)) categories = [categories];
-
-  await db.none('DELETE FROM user_preferences WHERE user_id = $1', [userId]);
-  for (const cat of categories) {
-    await db.none('INSERT INTO user_preferences (user_id, category) VALUES ($1, $2)', [userId, cat]);
-  }
-  res.redirect('/discover');
-});
-
-app.post('/join-challenge', auth, async (req, res) => {
-  const userId = req.session.user.id;
-  const challengeId = req.body.challenge_id;
-  try {
-    await db.none('INSERT INTO user_challenges (user_id, challenge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, challengeId]);
-  } catch (err) {
-    console.error(err);
-  }
-  res.redirect('/home');
-});
-
-app.get('/challenge/:id', auth, async (req, res) => {
-  try {
-    const challengeId = req.params.id;
-    const userId = req.session.user.id;
-
-    const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id = $1', [challengeId]);
-    if (!challenge) return res.redirect('/home');
-
-    const userChallenge = await db.oneOrNone('SELECT * FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
-
-    let entries = [];
-    if (userChallenge) {
-      entries = await db.any('SELECT TO_CHAR(entry_date, \'YYYY-MM-DD\') as entry_date, amount, is_completed FROM challenge_entries WHERE user_challenge_id = $1 ORDER BY entry_date DESC', [userChallenge.id]);
-    }
-
-    const comments = await db.any(`
-      SELECT cc.id,
-              cc.comment,
-              cc.created_at,
-              u.username,
-              u.profile_picture
-      FROM challenge_comments cc
-      JOIN users u ON cc.user_id = u.id
-      WHERE cc.challenge_id = $1
-      ORDER BY cc.created_at DESC
-    `, [challengeId]);
-
-    const leaderboard = await db.any(`
-            WITH today_entries AS (
-                SELECT user_challenge_id, SUM(amount) as today_amount, BOOL_OR(is_completed) as today_done
-                FROM challenge_entries 
-                WHERE entry_date = CURRENT_DATE
-                GROUP BY user_challenge_id
-            )
-            SELECT u.username, 
-                   COALESCE(up.progress, 0) as progress,
-                   COALESCE(up.successful_days, 0) as successful_days,
-                   CASE 
-                       WHEN c.entry_type = 'checkbox' THEN 
-                           CASE WHEN COALESCE(te.today_done, false) THEN 100 ELSE 0 END
-                       ELSE 
-                           LEAST(ROUND((COALESCE(te.today_amount, 0)::numeric / c.daily_target::numeric) * 100), 100)
-                   END as today_progress
-            FROM user_challenges uc 
-            JOIN users u ON u.id = uc.user_id 
-            JOIN challenges c ON c.id = uc.challenge_id
-            LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
-            LEFT JOIN today_entries te ON uc.id = te.user_challenge_id
-            WHERE uc.challenge_id = $1 
-            ORDER BY successful_days DESC, today_progress DESC
-            LIMIT 10
-        `, [challengeId]);
-
-    res.render('pages/challenge', {
-      user: req.session.user,
-      challenge,
-      userChallenge,
-      entries,
-      leaderboard,
-      comments,
-      today: new Date().toISOString().split('T')[0]
-    });
-  } catch (err) {
-    console.error(err);
-    res.redirect('/home');
-  }
-});
-
-app.post('/challenge/:id/log', auth, async (req, res) => {
-  try {
-    const challengeId = req.params.id;
-    const userId = req.session.user.id;
-    const { date, amount, completed } = req.body;
-
-    const userChallenge = await db.oneOrNone('SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2', [userId, challengeId]);
-    if (!userChallenge) return res.redirect('/home');
-
-    const isCompleted = completed === 'on';
-    const numAmount = amount ? parseFloat(amount) : 0;
-
-    await db.none(`
-            INSERT INTO challenge_entries (user_challenge_id, entry_date, amount, is_completed)
-            VALUES ($1, $2, $3, $4)
-        `, [userChallenge.id, date, numAmount, isCompleted]);
-
-    res.redirect('/challenge/' + challengeId);
-  } catch (err) {
-    console.error(err);
-    res.redirect('/challenge/' + req.params.id);
-  }
-});
-
-app.post('/challenge/:id/comment', auth, async (req, res) => {
-  try {
-    const challengeId = req.params.id;
-    const userId = req.session.user.id;
-    let { comment } = req.body;
-
-    comment = comment ? comment.trim() : '';
-
-    if (!comment) {
-      return res.redirect('/challenge/' + challengeId);
-    }
-
-    const userChallenge = await db.oneOrNone(
-      'SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2',
-      [userId, challengeId]
+    const profileUser = await db.oneOrNone(
+      'SELECT * FROM users WHERE username=$1',
+      [req.params.username]
     );
 
-    if (!userChallenge) {
-      return res.redirect('/challenge/' + challengeId);
-    }
+    if (!profileUser) return res.status(404).render('pages/404');
 
-    await db.none(`
-      INSERT INTO challenge_comments (challenge_id, user_id, comment)
-      VALUES ($1, $2, $3)
-    `, [challengeId, userId, comment]);
-
-    res.redirect('/challenge/' + challengeId);
-  } catch (err) {
-    console.error(err);
-    res.redirect('/challenge/' + req.params.id);
-  }
-});
-
-
-app.get('/profile', auth, async (req, res) => {
-  try {
-    const user = await db.one('SELECT id, username, email, profile_picture, created_at FROM users WHERE id = $1', [req.session.user.id]);
-    const counts = await db.oneOrNone(`
-            SELECT
-                COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
-                COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) = 100) as completed_count
-            FROM user_challenges uc
-            LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
-            WHERE uc.user_id = $1
-        `, [user.id]);
-
-    const errorMessages = {
-      wrong_password: 'Current password is incorrect.',
-      password_mismatch: 'New passwords do not match.',
-      email_taken: 'That email is already in use.',
-      no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
-      server: 'Something went wrong. Please try again.'
-    };
-    const successMessages = {
-      password: 'Password changed successfully.',
-      email: 'Email updated successfully.',
-      picture: 'Profile picture updated.'
-    };
+    const isMe = req.session.user.username === profileUser.username;
 
     res.render('pages/profile', {
       user: req.session.user,
-      profileUser: user,
-      activeCount: counts ? counts.active_count : 0,
-      completedCount: counts ? counts.completed_count : 0,
-      flashError: errorMessages[req.query.error] || null,
-      flashSuccess: successMessages[req.query.success] || null,
-      openEdit: !!(req.query.error || req.query.success)
+      profileUser,
+      isMe
     });
-  } catch (err) {
-    console.error(err);
+
+  } catch {
     res.redirect('/home');
   }
 });
 
-app.post('/profile/change-email', auth, async (req, res) => {
-  try {
-    const { new_email } = req.body;
-    const userId = req.session.user.id;
-    await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
-    req.session.user.email = new_email;
-    req.session.save(() => res.redirect('/profile?success=email'));
-  } catch (err) {
-    console.error(err);
-    res.redirect('/profile?error=email_taken');
-  }
+app.get('/profile', auth, (req, res) => {
+  res.redirect(`/profile/${req.session.user.username}`);
 });
 
-app.post('/profile/change-password', auth, async (req, res) => {
-  try {
-    const { current_password, new_password, confirm_password } = req.body;
-    if (new_password !== confirm_password) {
-      return res.redirect('/profile?error=password_mismatch');
-    }
-    const userId = req.session.user.id;
-    const user = await db.one('SELECT password FROM users WHERE id = $1', [userId]);
-    const match = await bcrypt.compare(current_password, user.password);
-    if (!match) return res.redirect('/profile?error=wrong_password');
-    const hash = await bcrypt.hash(new_password, 10);
-    await db.none('UPDATE users SET password = $1 WHERE id = $2', [hash, userId]);
-    res.redirect('/profile?success=password');
-  } catch (err) {
-    console.error(err);
-    res.redirect('/profile?error=server');
-  }
-});
 
-app.post('/profile/upload-picture', auth, async (req, res) => {
-  try {
-    const { image_data } = req.body;
-    if (!image_data || !image_data.startsWith('data:image/')) {
-      return res.redirect('/profile?error=no_image');
-    }
-    await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
-    req.session.user.profile_picture = image_data;
-    req.session.save(() => res.redirect('/profile?success=picture'));
-  } catch (err) {
-    console.error(err);
-    res.redirect('/profile?error=server');
-  }
-});
+//---------------- LOGOUT ----------------//
 
 app.get('/logout', auth, (req, res) => {
-
-  req.session.destroy(result => { console.log(result); });
-  const message = 'Logout successful!';
-  res.redirect('/login');
-
-});
-
-app.get('/admin/send-reminders', async (req, res) => {
-  // Send email based on database condition: challenge ending within 2 days
-  try {
-    const challengesEndingSoon = await db.any(`
-            SELECT c.id as challenge_id, c.title, c.end_date, u.email, u.username
-            FROM challenges c
-            JOIN user_challenges uc ON c.id = uc.challenge_id
-            JOIN users u ON uc.user_id = u.id
-            WHERE c.end_date <= CURRENT_DATE + INTERVAL '2 days'
-            AND c.end_date >= CURRENT_DATE
-        `);
-
-    let sentCount = 0;
-    for (const row of challengesEndingSoon) {
-      try {
-        if (resend) {
-          await resend.emails.send({
-            from: 'onboarding@resend.abad.cc',
-            to: row.email,
-            subject: `Challenge Ending Soon: ${row.title}`,
-            html: `<p>Hi ${row.username},</p><p>Your challenge "<strong>${row.title}</strong>" is ending on ${new Date(row.end_date).toLocaleDateString()}. Keep it up!</p>`
-          });
-        } else {
-          console.log(`[DEV] Skipping reminder email to ${row.email} for challenge "${row.title}" (no RESEND_API_KEY set)`);
-        }
-        sentCount++;
-      } catch (emailErr) {
-        console.error(`Failed to send to ${row.email}:`, emailErr);
-      }
-    }
-    res.json({ success: true, emailsSent: sentCount, totalEndingSoon: challengesEndingSoon.length });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+  req.session.destroy(() => res.redirect('/login'));
 });
 
 
 //-----------------------------------------------------------------------  Start Server  -----------------------------------------------------------------------\\
 
-// starting the server and keeping the connection open to listen for more requests
-
 module.exports = app.listen(3000);
-console.log('Server is listening on port 3000');
+console.log('Server running on port 3000');

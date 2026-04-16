@@ -31,7 +31,9 @@ CREATE TABLE challenges (
     end_date DATE NOT NULL,
     entry_type VARCHAR(20) NOT NULL DEFAULT 'checkbox',
     daily_target NUMERIC DEFAULT 1,
-    CONSTRAINT check_dates CHECK (end_date >= start_date)
+    challenge_type VARCHAR(20) NOT NULL DEFAULT 'weekly',
+    CONSTRAINT check_dates CHECK (end_date >= start_date),
+    CONSTRAINT check_challenge_type CHECK (challenge_type IN ('daily', 'weekly', 'monthly', 'group'))
 );
 
 -- User participation (join table)
@@ -80,8 +82,8 @@ CREATE INDEX idx_challenge_comments_user_id ON challenge_comments(user_id);
 -- Pre-baked SQL Query generating dynamic live progress tracking metrics efficiently
 CREATE VIEW user_progress AS
 WITH daily_sums AS (
-  SELECT user_challenge_id, entry_date, 
-         SUM(amount) as total_amount, 
+  SELECT user_challenge_id, entry_date,
+         SUM(amount) as total_amount,
          BOOL_OR(is_completed) as is_done
   FROM challenge_entries
   GROUP BY user_challenge_id, entry_date
@@ -95,8 +97,10 @@ successful_days AS (
      OR (c.entry_type = 'checkbox' AND ds.is_done)
   GROUP BY ds.user_challenge_id
 )
-SELECT uc.id as user_challenge_id, uc.user_id, uc.challenge_id, 
+SELECT uc.id as user_challenge_id, uc.user_id, uc.challenge_id,
        COALESCE(sd.success_count, 0) as successful_days,
-       LEAST(ROUND((COALESCE(sd.success_count, 0)::numeric / 7.0) * 100), 100) AS progress
+       (c.end_date - c.start_date + 1) AS total_days,
+       LEAST(ROUND((COALESCE(sd.success_count, 0)::numeric / NULLIF((c.end_date - c.start_date + 1)::numeric, 0)) * 100), 100) AS progress
 FROM user_challenges uc
-LEFT JOIN successful_days sd ON uc.id = sd.user_challenge_id;
+LEFT JOIN successful_days sd ON uc.id = sd.user_challenge_id
+JOIN challenges c ON uc.challenge_id = c.id;

@@ -1,28 +1,52 @@
 <div class="row w-100 mt-2 px-md-4 align-items-start">
-  
+
   <div class="col-md-7 mb-4">
     <a href="/home" class="text-white-50 text-decoration-none small mb-3 d-inline-block"><i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard</a>
-    
+
     <div class="glass-card p-4 p-md-5 position-relative overflow-hidden">
       <div style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--primary); opacity:0.1; filter:blur(40px);"></div>
-      
-      <span class="badge mb-3 px-3 py-2 rounded-pill" style="background: var(--secondary); font-size: 0.85rem;">{{challenge.category}}</span>
+
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="badge px-3 py-2 rounded-pill" style="background: var(--secondary); font-size: 0.85rem;">{{challenge.category}}</span>
+        <span class="badge px-3 py-2 rounded-pill" style="background: rgba(255,255,255,0.07); font-size: 0.85rem; color: white;">
+          <i class="fa-solid {{iconForType challenge.challenge_type}} me-1" style="color: var(--primary);"></i>{{labelForType challenge.challenge_type}}
+        </span>
+      </div>
+
       <h1 class="display-5 fw-bold mb-3">{{challenge.title}}</h1>
-      <p class="text-white-50 lead mb-5">{{challenge.description}}</p>
+      <p class="text-white-50 lead mb-4">{{challenge.description}}</p>
+
+      <!-- Countdown (visible when < 24h remain) -->
+      {{#if show_countdown}}
+      <div class="d-flex align-items-center gap-3 mb-4 p-3 rounded-4 {{#if (lt hours_remaining 1)}}reminder-pulse{{/if}}"
+           style="background: rgba(0,0,0,0.35); border: 1px solid {{#if (lt hours_remaining 1)}}rgba(255,59,59,0.5){{else if (lt hours_remaining 12)}}rgba(255,165,0,0.4){{else}}rgba(202,255,0,0.25){{/if}};">
+        <i class="fa-solid fa-stopwatch fs-3" style="color: {{#if (lt hours_remaining 1)}}#ff3b3b{{else if (lt hours_remaining 12)}}#ffaa00{{else}}var(--primary){{/if}};"></i>
+        <div>
+          <div class="text-white-50 small text-uppercase fw-bold" style="letter-spacing:1px; font-size:0.65rem;">
+            {{#if (lt hours_remaining 1)}}Final Hour{{else if (lt hours_remaining 12)}}12 Hours Left{{else}}Last 24 Hours{{/if}}
+          </div>
+          <span class="countdown fw-bold fs-4" style="color: {{#if (lt hours_remaining 1)}}#ff6b6b{{else if (lt hours_remaining 12)}}#ffcc55{{else}}var(--primary){{/if}}; font-variant-numeric: tabular-nums;" data-end="{{end_timestamp}}">--:--:--</span>
+        </div>
+        <div class="ms-auto text-end">
+          <small class="text-white-50 d-block">Don't miss it!</small>
+          <small class="fw-bold" style="color: var(--primary);">Log your progress</small>
+        </div>
+      </div>
+      {{/if}}
 
       {{#if userChallenge}}
       <div class="p-4 rounded-4 mb-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
         <h4 class="fw-bold mb-1"><i class="fa-regular fa-calendar-check me-2" style="color: var(--primary);"></i>Log Your Progress</h4>
         <p class="text-white-50 small mb-4">Update past entries or log today's value to maintain accuracy and climb the leaderboard.</p>
-        
+
         <form action="/challenge/{{challenge.id}}/log" method="POST" class="d-flex align-items-end gap-3 flex-wrap">
           <div style="flex: 1; min-width: 150px;">
             <label class="form-label text-white-50 small text-uppercase fw-bold">Date</label>
             <input type="date" class="form-control" name="date" value="{{today}}" max="{{today}}" required>
           </div>
-          
+
           <div style="flex: 1; min-width: 150px;">
-            {{#if (eq challenge.entry_type 'amount')}} <!-- We could use a standard hbs helper, but since we don't have them installed we will just let CSS handle visibility or fallback to HTML -->
+            {{#if (eq challenge.entry_type 'amount')}}
             <label class="form-label text-white-50 small text-uppercase fw-bold">Amount (Goal: {{challenge.daily_target}})</label>
             <input type="number" step="0.01" class="form-control" name="amount" placeholder="e.g. 2.5">
             {{else}}
@@ -33,7 +57,7 @@
             </div>
             {{/if}}
           </div>
-          
+
           <div>
              <button type="submit" class="btn btn-neon pb-2 pt-2 px-4"><i class="fa-solid fa-floppy-disk me-1"></i> Save Entry</button>
           </div>
@@ -61,7 +85,7 @@
       {{else}}
         <p class="text-white-50 small">No logs exist for this challenge yet. Start logging above!</p>
       {{/if}}
-      
+
       {{else}}
       <div class="alert alert-warning" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.4); color: #ffc107;" role="alert">
          You must join this challenge from the Discover page to log data.
@@ -113,11 +137,12 @@
 
   <div class="col-md-5">
     <div class="glass-card p-4">
-      <div class="d-flex align-items-center gap-2 mb-4">
+      <div class="d-flex align-items-center gap-2 mb-1">
         <i class="fa-solid fa-earth-americas fs-4" style="color: var(--secondary);"></i>
         <h4 class="fw-bold m-0 text-white">Global Leaderboard</h4>
       </div>
-      
+      <p class="text-white-50 small mb-4">Ranked by days completed out of {{total_days}} total.</p>
+
       {{#if leaderboard.length}}
       <div class="d-flex flex-column gap-3">
         {{#each leaderboard}}
@@ -126,7 +151,7 @@
             <div class="fw-bold text-white-50 me-3" style="width: 20px;">#{{@index}}</div>
             <div class="flex-grow-1 fw-bold text-white">{{this.username}}</div>
             <div class="text-end">
-              <span class="fw-bold fs-5" style="color: var(--primary);">{{this.successful_days}}<span class="text-white-50 fs-6">/7</span></span>
+              <span class="fw-bold fs-5" style="color: var(--primary);">{{this.successful_days}}<span class="text-white-50 fs-6">/{{../total_days}}</span></span>
             </div>
           </div>
           <!-- Today Progress Bar -->
@@ -146,3 +171,11 @@
     </div>
   </div>
 </div>
+
+<style>
+@keyframes reminderPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,59,0); }
+  50% { box-shadow: 0 0 12px 4px rgba(255,59,59,0.25); }
+}
+.reminder-pulse { animation: reminderPulse 2s ease-in-out infinite; }
+</style>
