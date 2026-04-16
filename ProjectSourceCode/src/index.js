@@ -35,16 +35,25 @@ async function initDbIfEmpty(database) {
     );
     if (tableExists && tableExists.exists) {
       console.log('Database already initialized, skipping init_data.');
-      return;
+    } else {
+      console.log('Database is empty — running init_data scripts...');
+      const createSql = fs.readFileSync(path.join(__dirname, 'init_data', 'create.sql'), 'utf8');
+      const insertSql = fs.readFileSync(path.join(__dirname, 'init_data', 'insert.sql'), 'utf8');
+      await database.none(createSql);
+      console.log('  ✔ create.sql executed');
+      await database.none(insertSql);
+      console.log('  ✔ insert.sql executed');
+      console.log('Database initialization complete.');
     }
-    console.log('Database is empty — running init_data scripts...');
-    const createSql = fs.readFileSync(path.join(__dirname, 'init_data', 'create.sql'), 'utf8');
-    const insertSql = fs.readFileSync(path.join(__dirname, 'init_data', 'insert.sql'), 'utf8');
-    await database.none(createSql);
-    console.log('  ✔ create.sql executed');
-    await database.none(insertSql);
-    console.log('  ✔ insert.sql executed');
-    console.log('Database initialization complete.');
+
+    // Ensure user_logouts exists even if DB was already initialized
+    await database.none(`
+      CREATE TABLE IF NOT EXISTS user_logouts (
+          email VARCHAR(100) PRIMARY KEY,
+          logout_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('  ✔ user_logouts table ensured');
   } catch (err) {
     console.error('Database initialization failed:', err.message || err);
   }
@@ -147,10 +156,27 @@ const requireAuth = jwtVerify({
 
 //Check authentication variable
 const auth = (req, res, next) => {
-  requireAuth(req, res, (err) => {
+  requireAuth(req, res, async (err) => {
     if (err || !req.auth) {
       return res.redirect('/login');
     }
+
+    // Check if token's user has logged out since it was issued
+    const email = req.auth.email;
+    const iat = req.auth.iat; // issued at (epoch seconds)
+    if (email && iat) {
+      try {
+        const logoutRecord = await db.oneOrNone('SELECT EXTRACT(EPOCH FROM logout_at) AS logout_seconds FROM user_logouts WHERE email = $1', [email]);
+        if (logoutRecord && logoutRecord.logout_seconds && iat < logoutRecord.logout_seconds) {
+          res.clearCookie('token');
+          return res.redirect('/login');
+        }
+      } catch (dbErr) {
+        console.error('Error checking user logouts:', dbErr);
+        return res.redirect('/login');
+      }
+    }
+
     // Assign auth object to mock existing session.user references to prevent further code changes
     req.session = req.session || {};
     req.session.user = req.auth;
@@ -722,6 +748,7 @@ app.post('/profile/delete-account', auth, async (req, res) => {
   try {
     const userId = req.session.user.id;
     await db.none('DELETE FROM users WHERE id = $1', [userId]);
+
     res.clearCookie('token');
     res.redirect('/login?message=account_deleted');
   } catch (err) {
@@ -730,7 +757,22 @@ app.post('/profile/delete-account', auth, async (req, res) => {
   }
 });
 
-app.get('/logout', (req, res) => {
+app.get('/logout', async (req, res) => {
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.email) {
+        await db.none(`
+          INSERT INTO user_logouts (email, logout_at) 
+          VALUES ($1, CURRENT_TIMESTAMP) 
+          ON CONFLICT (email) DO UPDATE SET logout_at = CURRENT_TIMESTAMP
+        `, [decoded.email]);
+      }
+    } catch (err) {
+      console.error('Error revoking token on logout:', err);
+    }
+  }
   res.clearCookie('token');
   res.redirect('/login');
 });

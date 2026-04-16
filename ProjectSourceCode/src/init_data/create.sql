@@ -20,6 +20,13 @@ CREATE TABLE user_preferences (
     PRIMARY KEY (user_id, category)
 );
 
+-- Global User Logouts table
+CREATE TABLE user_logouts (
+    email VARCHAR(100) PRIMARY KEY,
+    logout_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
 -- Challenges table
 CREATE TABLE challenges (
     id SERIAL PRIMARY KEY,
