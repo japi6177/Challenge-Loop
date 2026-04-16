@@ -64,6 +64,15 @@ CREATE TABLE challenge_comments (
     comment TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ -- Friend Table 
+CREATE TABLE friends (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  friend_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'accepted',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CHECK (user_id <> friend_id)
+);
 
 CREATE INDEX idx_challenge_comments_challenge_id ON challenge_comments(challenge_id);
 CREATE INDEX idx_challenge_comments_user_id ON challenge_comments(user_id);
