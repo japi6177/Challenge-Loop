@@ -202,11 +202,13 @@ app.post('/verify-code', async (req, res) => {
 
 //---------------- REGISTER ----------------//
 
+
 app.post('/register', async (req, res) => {
+  
   const usernameRegex = /^[a-zA-Z0-9_]+$/;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
-
+  
   try {
     const { username, email, password } = req.body;
 
@@ -214,26 +216,37 @@ app.post('/register', async (req, res) => {
       throw new Error('Missing required fields');
     }
 
-    if (username.length < 8) throw new Error('Username must be at least 8 characters.');
-    if (!usernameRegex.test(username)) throw new Error('Invalid username.');
-    if (!emailRegex.test(email)) throw new Error('Invalid email.');
-    if (password.length < 8) throw new Error('Password too short.');
-    if (!passwordRegex.test(password)) throw new Error('Weak password.');
+    //Validate username
+    if (username.length < 8) {
+      throw new Error('Username must be at least 8 characters long.');
+    }
+    else if (!usernameRegex.test(username)) {
+      throw new Error('Username can only contain letters, numbers, and underscores.');
+    }
+
+    //validate email
+    if (!emailRegex.test(email)) {
+      throw new Error('Please enter a valid email address.');
+    }
+
+    //validate password
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters long.');
+    }
+    else if (!passwordRegex.test(password)) {
+      throw new Error('Password must include uppercase, lowercase, and a number.');
+    }
+
 
     const hash = await bcrypt.hash(password, 10);
-
-    const user = await db.one(
-      'INSERT INTO users(username,email,password) VALUES($1,$2,$3) RETURNING id,username,email',
-      [username, email, hash]
-    );
-
-    req.session.user = user;
-    res.redirect('/home');
-
+    const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
+    
+    req.session.user = { username: user.username, email: user.email, id: user.id };
+    req.session.save(() => res.redirect('/home'));
   } catch (err) {
-    res.render('pages/login', {
-      registerError: 'Registration failed. ' + err.message
-    });
+    // console.log(err);
+    //I had to tack on the "registration failed" bit to every error message for the mocha tests. Be careful if you change it.
+    res.render('pages/login', { registerError: ('Registration failed. ' + err.message) ||'Registration failed. Username or email might already be taken.' });
   }
 });
 
@@ -263,30 +276,89 @@ app.get('/home', auth, async (req, res) => {
 
 //---------------- PROFILE ----------------//
 
+//Overhauled /profile method to allow users to view any profile, based on the username in the URL.
+//Viewing a different person's profile doesn't allow you to edit it. Obviously.
+//Also, if there's no username provided, it defaults to your profile, per the standard /profile route below this one.
 app.get('/profile/:username', auth, async (req, res) => {
   try {
+    const { username } = req.params;
+    
     const profileUser = await db.oneOrNone(
-      'SELECT * FROM users WHERE username=$1',
-      [req.params.username]
+      'SELECT id, username, email, profile_picture, created_at FROM users WHERE username = $1',
+      [username]
     );
 
-    if (!profileUser) return res.status(404).render('pages/404');
+    //If no such user is found
+    if (!profileUser) {
+      return res.status(404).render('pages/404');
+    }
 
+    //This variable controls your permissions on this page. 
+    //This prevents you from editing other people's profiles
+    //Please don't mess with it unless you need to.
     const isMe = req.session.user.username === profileUser.username;
+    console.log(isMe);
+
+    //Query to return challenges associated with the user
+    const counts = await db.oneOrNone(`
+      SELECT
+        COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
+        COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) = 100) as completed_count
+      FROM user_challenges uc
+      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
+      WHERE uc.user_id = $1
+    `, [profileUser.id]);
+
+    //Error messages for modifying your account.
+    const errorMessages = {
+      wrong_password: 'Current password is incorrect.',
+      password_mismatch: 'New passwords do not match.',
+      email_taken: 'That email is already in use.',
+      no_image: 'Please select an image (JPEG, PNG, GIF, or WebP).',
+      server: 'Something went wrong. Please try again.'
+    };
+    //Non-error messages for doing that
+    const successMessages = {
+      password: 'Password changed successfully.',
+      email: 'Email updated successfully.',
+      picture: 'Profile picture updated.'
+    };
 
     res.render('pages/profile', {
-      user: req.session.user,
-      profileUser,
-      isMe
+      user: req.session.user,              // logged-in user
+      profileUser,                         // profile being viewed
+      isMe,                        // key flag for the UI
+      activeCount: counts ? counts.active_count : 0,
+      completedCount: counts ? counts.completed_count : 0,
+      flashError: isMe ? errorMessages[req.query.error] || null : null,
+      flashSuccess: isMe ? successMessages[req.query.success] || null : null,
+      openEdit: isMe && !!(req.query.error || req.query.success)
     });
 
-  } catch {
+  } catch (err) {
+    console.error(err);
+>>>>>>> 463127a (issues resolved)
     res.redirect('/home');
   }
 });
 
 app.get('/profile', auth, (req, res) => {
-  res.redirect(`/profile/${req.session.user.username}`);
+  const username = req.session.user.username;
+  res.redirect(`/profile/${username}`);
+});
+
+app.post('/profile/change-email', auth, async (req, res) => {
+  try {
+    const { new_email } = req.body;
+    const userId = req.session.user.id;
+    await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
+    req.session.user.email = new_email;
+    req.session.save(() => res.redirect('/profile?success=email'));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/profile?error=email_taken');
+  }
+>>>>>>> 463127a (issues resolved)
 });
 
 
