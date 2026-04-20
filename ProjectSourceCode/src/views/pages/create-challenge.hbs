@@ -96,6 +96,18 @@
 
         <div id="date-hint" class="text-white-50 small mb-4 text-center" style="display:none;"></div>
 
+        <div class="mb-4 p-4 rounded-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+          <div class="d-flex align-items-start justify-content-between gap-3">
+            <div>
+              <p class="text-white fw-bold mb-1"><i class="fa-solid fa-gavel me-2" style="color: var(--secondary);"></i>Enable Judging</p>
+              <p class="text-white-50 small mb-0">Participants must upload a photo with every log entry. Assigned judges review each submission and approve or reject it — only approved entries count toward the leaderboard.</p>
+            </div>
+            <div class="form-check form-switch flex-shrink-0 mt-1">
+              <input class="form-check-input" type="checkbox" role="switch" id="enable_judging" name="enable_judging" style="width: 3rem; height: 1.5rem; cursor: pointer;">
+            </div>
+          </div>
+        </div>
+
         <button type="submit" class="btn btn-neon w-100">Create Challenge</button>
       </form>
 

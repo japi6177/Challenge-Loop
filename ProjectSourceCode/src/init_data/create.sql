@@ -32,6 +32,8 @@ CREATE TABLE challenges (
     entry_type VARCHAR(20) NOT NULL DEFAULT 'checkbox',
     daily_target NUMERIC DEFAULT 1,
     challenge_type VARCHAR(20) NOT NULL DEFAULT 'weekly',
+    creator_id INT REFERENCES users(id) ON DELETE SET NULL,
+    enable_judging BOOLEAN DEFAULT false,
     CONSTRAINT check_dates CHECK (end_date >= start_date),
     CONSTRAINT check_challenge_type CHECK (challenge_type IN ('daily', 'weekly', 'monthly', 'group'))
 );
@@ -55,10 +57,21 @@ CREATE TABLE challenge_entries (
     user_challenge_id INT NOT NULL REFERENCES user_challenges(id) ON DELETE CASCADE,
     entry_date DATE NOT NULL,
     amount NUMERIC DEFAULT 0,
-    is_completed BOOLEAN DEFAULT false
+    is_completed BOOLEAN DEFAULT false,
+    photo_data TEXT,
+    judge_status VARCHAR(20) DEFAULT 'pending'
 );
 
--- Comments for challenges 
+-- Judge assignments
+CREATE TABLE judge_assignments (
+    id SERIAL PRIMARY KEY,
+    challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+    judge_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(challenge_id, judge_id)
+);
+
+-- Comments for challenges
 CREATE TABLE challenge_comments (
     id SERIAL PRIMARY KEY,
     challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
@@ -66,7 +79,8 @@ CREATE TABLE challenge_comments (
     comment TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
- -- Friend Table 
+
+-- Friend Table
 CREATE TABLE friends (
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -79,26 +93,31 @@ CREATE TABLE friends (
 CREATE INDEX idx_challenge_comments_challenge_id ON challenge_comments(challenge_id);
 CREATE INDEX idx_challenge_comments_user_id ON challenge_comments(user_id);
 
--- Pre-baked SQL Query generating dynamic live progress tracking metrics efficiently
+-- Progress view — when judging is enabled, only approved entries count toward successful days
 CREATE VIEW user_progress AS
 WITH daily_sums AS (
-  SELECT user_challenge_id, entry_date,
-         SUM(amount) as total_amount,
-         BOOL_OR(is_completed) as is_done
-  FROM challenge_entries
-  GROUP BY user_challenge_id, entry_date
+  SELECT
+    ce.user_challenge_id,
+    ce.entry_date,
+    c.enable_judging,
+    c.entry_type,
+    c.daily_target,
+    SUM(CASE WHEN NOT COALESCE(c.enable_judging, false) OR ce.judge_status = 'approved' THEN ce.amount ELSE 0 END) AS approved_amount,
+    BOOL_OR(ce.is_completed AND (NOT COALESCE(c.enable_judging, false) OR ce.judge_status = 'approved')) AS approved_done
+  FROM challenge_entries ce
+  JOIN user_challenges uc ON ce.user_challenge_id = uc.id
+  JOIN challenges c ON uc.challenge_id = c.id
+  GROUP BY ce.user_challenge_id, ce.entry_date, c.enable_judging, c.entry_type, c.daily_target
 ),
 successful_days AS (
-  SELECT ds.user_challenge_id, count(*) as success_count
+  SELECT ds.user_challenge_id, count(*) AS success_count
   FROM daily_sums ds
-  JOIN user_challenges uc ON ds.user_challenge_id = uc.id
-  JOIN challenges c ON uc.challenge_id = c.id
-  WHERE (c.entry_type = 'amount' AND ds.total_amount >= c.daily_target)
-     OR (c.entry_type = 'checkbox' AND ds.is_done)
+  WHERE (ds.entry_type = 'amount' AND ds.approved_amount >= ds.daily_target)
+     OR (ds.entry_type = 'checkbox' AND ds.approved_done)
   GROUP BY ds.user_challenge_id
 )
-SELECT uc.id as user_challenge_id, uc.user_id, uc.challenge_id,
-       COALESCE(sd.success_count, 0) as successful_days,
+SELECT uc.id AS user_challenge_id, uc.user_id, uc.challenge_id,
+       COALESCE(sd.success_count, 0) AS successful_days,
        (c.end_date - c.start_date + 1) AS total_days,
        LEAST(ROUND((COALESCE(sd.success_count, 0)::numeric / NULLIF((c.end_date - c.start_date + 1)::numeric, 0)) * 100), 100) AS progress
 FROM user_challenges uc
