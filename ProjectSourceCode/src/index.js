@@ -677,6 +677,93 @@ app.post('/challenge/:id/comment', auth, async (req, res) => {
 });
 
 
+//---------------- EDIT / DELETE CHALLENGE ----------------//
+
+app.get('/challenge/:id/edit', auth, async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
+
+    const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id=$1', [challengeId]);
+    if (!challenge || challenge.creator_id !== userId) return res.redirect(`/challenge/${challengeId}`);
+
+    const today = new Date().toISOString().split('T')[0];
+    const judgingLocked = challenge.start_date <= today;
+
+    res.render('pages/edit-challenge', {
+      user: req.session.user,
+      challenge,
+      today,
+      judgingLocked
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
+});
+
+app.post('/challenge/:id/edit', auth, async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
+
+    const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id=$1', [challengeId]);
+    if (!challenge || challenge.creator_id !== userId) return res.redirect(`/challenge/${challengeId}`);
+
+    const { category, title, description, entry_type, daily_target, start_date, end_date, challenge_type, enable_judging } = req.body;
+
+    const today = new Date().toISOString().split('T')[0];
+    const judgingLocked = challenge.start_date <= today;
+    const newJudging = judgingLocked ? challenge.enable_judging : (enable_judging === 'on');
+
+    await db.none(
+      `UPDATE challenges
+       SET category=$1, title=$2, description=$3, entry_type=$4, daily_target=$5,
+           start_date=$6, end_date=$7, challenge_type=$8, enable_judging=$9
+       WHERE id=$10`,
+      [category, title, description || '', entry_type, daily_target || 1,
+       start_date, end_date, challenge_type, newJudging, challengeId]
+    );
+
+    res.redirect(`/challenge/${challengeId}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/challenge/${req.params.id}/edit`);
+  }
+});
+
+app.get('/challenge/:id/delete', auth, async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
+
+    const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id=$1', [challengeId]);
+    if (!challenge || challenge.creator_id !== userId) return res.redirect(`/challenge/${challengeId}`);
+
+    res.render('pages/delete-challenge', { user: req.session.user, challenge });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
+});
+
+app.post('/challenge/:id/delete', auth, async (req, res) => {
+  try {
+    const challengeId = req.params.id;
+    const userId = req.session.user.id;
+
+    const challenge = await db.oneOrNone('SELECT * FROM challenges WHERE id=$1', [challengeId]);
+    if (!challenge || challenge.creator_id !== userId) return res.redirect(`/challenge/${challengeId}`);
+
+    await db.none('DELETE FROM challenges WHERE id=$1', [challengeId]);
+    res.redirect('/home');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
+});
+
+
 //---------------- JUDGING — ASSIGN / REMOVE ----------------//
 
 app.post('/challenge/:id/assign-judge', auth, async (req, res) => {

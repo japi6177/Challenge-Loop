@@ -1,0 +1,27 @@
+<div class="row w-100 justify-content-center mt-5">
+  <div class="col-md-6 col-lg-5">
+    <div class="glass-card p-5 text-center" style="border-color: rgba(239,68,68,0.3);">
+      <div class="mb-4">
+        <div class="d-inline-flex p-4 rounded-circle mb-2" style="background: rgba(239,68,68,0.1);">
+          <i class="fa-solid fa-triangle-exclamation fs-1" style="color: #f87171;"></i>
+        </div>
+      </div>
+
+      <h2 class="fw-bold mb-2 text-white">Delete Challenge?</h2>
+      <p class="text-white-50 mb-1">You're about to permanently delete:</p>
+      <p class="fw-bold fs-5 mb-4" style="color: #f87171;">{{challenge.title}}</p>
+      <p class="text-white-50 small mb-5">This will remove all entries, logs, judge assignments, and comments. <strong class="text-white">This cannot be undone.</strong></p>
+
+      <div class="d-flex gap-3 justify-content-center">
+        <a href="/challenge/{{challenge.id}}" class="btn rounded-pill px-4" style="border: 1px solid rgba(255,255,255,0.2); color: white;">
+          Cancel
+        </a>
+        <form action="/challenge/{{challenge.id}}/delete" method="POST" class="m-0">
+          <button type="submit" class="btn px-4 fw-bold" style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.5); color: #f87171;">
+            <i class="fa-solid fa-trash me-2"></i>Yes, Delete It
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

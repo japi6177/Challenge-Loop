@@ -1,22 +1,18 @@
 <div class="row w-100 justify-content-center mt-5">
   <div class="col-md-8 col-lg-6">
     <div class="glass-card p-5">
-      <h2 class="fw-bold mb-4 text-center">Create a Custom Challenge</h2>
-      <p class="text-white-50 text-center mb-4">Design your own challenge and add it to the loop.</p>
+      <a href="/challenge/{{challenge.id}}" class="text-white-50 text-decoration-none small mb-4 d-inline-block">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to Challenge
+      </a>
+      <h2 class="fw-bold mb-4 text-center">Edit Challenge</h2>
 
-      {{#if error}}
-      <div class="alert alert-danger" role="alert">
-        {{error}}
-      </div>
-      {{/if}}
-
-      <form action="/create-challenge" method="POST">
+      <form action="/challenge/{{challenge.id}}/edit" method="POST">
 
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Challenge Type</label>
           <div class="row g-2" id="type-selector">
             <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="challenge_type" id="type_daily" value="daily" autocomplete="off">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_daily" value="daily" autocomplete="off" {{#if (eq challenge.challenge_type 'daily')}}checked{{/if}}>
               <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_daily" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
                 <i class="fa-solid fa-sun fs-4" style="color: var(--primary);"></i>
                 <span class="fw-bold small">Daily</span>
@@ -24,7 +20,7 @@
               </label>
             </div>
             <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="challenge_type" id="type_weekly" value="weekly" autocomplete="off" checked>
+              <input type="radio" class="btn-check" name="challenge_type" id="type_weekly" value="weekly" autocomplete="off" {{#if (eq challenge.challenge_type 'weekly')}}checked{{/if}}>
               <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_weekly" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
                 <i class="fa-solid fa-calendar-week fs-4" style="color: var(--primary);"></i>
                 <span class="fw-bold small">Weekly</span>
@@ -32,7 +28,7 @@
               </label>
             </div>
             <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="challenge_type" id="type_monthly" value="monthly" autocomplete="off">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_monthly" value="monthly" autocomplete="off" {{#if (eq challenge.challenge_type 'monthly')}}checked{{/if}}>
               <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_monthly" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
                 <i class="fa-solid fa-calendar fs-4" style="color: var(--primary);"></i>
                 <span class="fw-bold small">Monthly</span>
@@ -40,7 +36,7 @@
               </label>
             </div>
             <div class="col-6 col-md-3">
-              <input type="radio" class="btn-check" name="challenge_type" id="type_group" value="group" autocomplete="off">
+              <input type="radio" class="btn-check" name="challenge_type" id="type_group" value="group" autocomplete="off" {{#if (eq challenge.challenge_type 'group')}}checked{{/if}}>
               <label class="btn w-100 type-btn rounded-3 py-3 d-flex flex-column align-items-center gap-1" for="type_group" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer;">
                 <i class="fa-solid fa-users fs-4" style="color: var(--secondary);"></i>
                 <span class="fw-bold small">Group</span>
@@ -53,44 +49,43 @@
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Category</label>
           <select class="form-control bg-dark text-white border-secondary" name="category" required>
-            <option value="">Select a category</option>
-            <option value="Fitness">Fitness</option>
-            <option value="Productivity">Productivity</option>
-            <option value="Educational">Educational</option>
+            <option value="Fitness" {{#if (eq challenge.category 'Fitness')}}selected{{/if}}>Fitness</option>
+            <option value="Productivity" {{#if (eq challenge.category 'Productivity')}}selected{{/if}}>Productivity</option>
+            <option value="Educational" {{#if (eq challenge.category 'Educational')}}selected{{/if}}>Educational</option>
           </select>
         </div>
 
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Title</label>
-          <input type="text" class="form-control" name="title" required placeholder="Challenge title">
+          <input type="text" class="form-control" name="title" required value="{{challenge.title}}">
         </div>
 
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Description</label>
-          <textarea class="form-control" name="description" rows="3" placeholder="Describe the challenge"></textarea>
+          <textarea class="form-control" name="description" rows="3">{{challenge.description}}</textarea>
         </div>
 
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Entry Type</label>
           <select class="form-control bg-dark text-white border-secondary" name="entry_type" required>
-            <option value="checkbox">Checkbox (done / not done)</option>
-            <option value="amount">Amount (track a quantity)</option>
+            <option value="checkbox" {{#if (eq challenge.entry_type 'checkbox')}}selected{{/if}}>Checkbox (done / not done)</option>
+            <option value="amount" {{#if (eq challenge.entry_type 'amount')}}selected{{/if}}>Amount (track a quantity)</option>
           </select>
         </div>
 
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Daily Target</label>
-          <input type="number" step="0.01" class="form-control" name="daily_target" value="1" required>
+          <input type="number" step="0.01" class="form-control" name="daily_target" value="{{challenge.daily_target}}" required>
         </div>
 
         <div class="row g-3 mb-4">
           <div class="col-6">
             <label class="form-label text-white-50 small text-uppercase fw-bold">Start Date</label>
-            <input type="date" class="form-control" name="start_date" id="start_date" value="{{today}}" required>
+            <input type="date" class="form-control" name="start_date" id="start_date" value="{{challenge.start_date}}" required>
           </div>
           <div class="col-6">
             <label class="form-label text-white-50 small text-uppercase fw-bold">End Date</label>
-            <input type="date" class="form-control" name="end_date" id="end_date" required>
+            <input type="date" class="form-control" name="end_date" id="end_date" value="{{challenge.end_date}}" required>
           </div>
         </div>
 
@@ -99,30 +94,36 @@
         <div class="mb-4 p-4 rounded-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
           <div class="d-flex align-items-start justify-content-between gap-3">
             <div>
-              <p class="text-white fw-bold mb-1"><i class="fa-solid fa-gavel me-2" style="color: var(--secondary);"></i>Enable Judging</p>
-              <p class="text-white-50 small mb-0">Participants must upload a photo with every log entry. Assigned judges review each submission and approve or reject it — only approved entries count toward the leaderboard.</p>
+              <p class="fw-bold mb-1 {{#if judgingLocked}}text-white-50{{else}}text-white{{/if}}">
+                <i class="fa-solid fa-gavel me-2" style="color: var(--secondary);"></i>Enable Judging
+              </p>
+              {{#if judgingLocked}}
+              <p class="small mb-0" style="color:#c084fc;">Judging cannot be changed once a challenge has started.</p>
+              {{else}}
+              <p class="text-white-50 small mb-0">Participants must upload a photo with every log entry. Only approved entries count toward the leaderboard.</p>
+              {{/if}}
             </div>
             <div class="form-check form-switch flex-shrink-0 mt-1">
-              <input class="form-check-input" type="checkbox" role="switch" id="enable_judging" name="enable_judging" style="width: 3rem; height: 1.5rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" role="switch" id="enable_judging" name="enable_judging"
+                style="width: 3rem; height: 1.5rem; cursor: {{#if judgingLocked}}not-allowed{{else}}pointer{{/if}};"
+                {{#if challenge.enable_judging}}checked{{/if}}
+                {{#if judgingLocked}}disabled{{/if}}>
             </div>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-neon w-100">Create Challenge</button>
+        <button type="submit" class="btn btn-neon w-100">Save Changes</button>
       </form>
 
       <div class="text-center mt-4">
-        <a href="/home" class="text-white-50 text-decoration-none">Cancel</a>
+        <a href="/challenge/{{challenge.id}}" class="text-white-50 text-decoration-none">Cancel</a>
       </div>
     </div>
   </div>
 </div>
 
 <style>
-  select, option {
-    background-color: #111 !important;
-    color: white !important;
-  }
+  select, option { background-color: #111 !important; color: white !important; }
   .btn-check:checked + .type-btn {
     border-color: var(--primary) !important;
     background: rgba(202, 255, 0, 0.08) !important;
@@ -150,24 +151,20 @@
 
     if (type === 'daily') {
       endInput.readOnly = true;
-      startInput.readOnly = false;
       hint.style.display = 'block';
       hint.textContent = 'Daily challenges last exactly 1 day.';
     } else if (type === 'weekly') {
       end.setDate(start.getDate() + 6);
       endInput.readOnly = true;
-      startInput.readOnly = false;
       hint.style.display = 'block';
       hint.textContent = 'Weekly challenges run for 7 days from your start date.';
     } else if (type === 'monthly') {
       end.setDate(start.getDate() + 29);
       endInput.readOnly = true;
-      startInput.readOnly = false;
       hint.style.display = 'block';
       hint.textContent = 'Monthly challenges run for 30 days from your start date.';
     } else {
       endInput.readOnly = false;
-      startInput.readOnly = false;
       hint.style.display = 'block';
       hint.textContent = 'Group challenges have a custom date range — adjust as needed.';
       return;
@@ -185,8 +182,5 @@
   });
 
   startInput.addEventListener('change', function() { recalcEnd(getSelectedType()); });
-
-  // Set initial end date based on default selection (weekly)
-  recalcEnd('weekly');
 })();
 </script>
