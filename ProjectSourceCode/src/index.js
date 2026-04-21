@@ -9,47 +9,24 @@
 
 const express = require('express');
 const app = express();
-const session = require('express-session');
-const handlebars = require('express-handlebars');
-const Handlebars = require('handlebars');
+const handlebars = require('express-handlebars'); //enable express to use handlebars
+const Handlebars = require('handlebars'); //include templating engine for handlebars
 const path = require('path');
 const fs = require('fs');
 const pgp = require('pg-promise')();
 const bodyParser = require('body-parser');
-const bcrypt = require('bcryptjs');
-const { Resend } = require('resend');
-
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const { expressjwt: jwtVerify } = require('express-jwt');
+const crypto = require('crypto');
+const { Resend } = require('resend'); // email client
 let resend = null;
 if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY);
 }
 
 
-//-----------------------------------------------------------------------  DB Init  -----------------------------------------------------------------------\\
-
-async function initDbIfEmpty(database) {
-  try {
-    const tableExists = await database.oneOrNone(
-      `SELECT to_regclass('public.users') AS exists`
-    );
-
-    if (tableExists && tableExists.exists) {
-      console.log('Database already initialized.');
-      return;
-    }
-
-    console.log('Running init scripts...');
-    const createSql = fs.readFileSync(path.join(__dirname, 'init_data', 'create.sql'), 'utf8');
-    const insertSql = fs.readFileSync(path.join(__dirname, 'init_data', 'insert.sql'), 'utf8');
-
-    await database.none(createSql);
-    await database.none(insertSql);
-
-    console.log('DB initialized.');
-  } catch (err) {
-    console.error('DB init failed:', err);
-  }
-}
+const { runMigrations } = require('./init_data/migration');
 
 // Runs ALTER TABLE / CREATE TABLE IF NOT EXISTS for new judging columns on existing databases
 async function runMigrations(database) {
@@ -164,8 +141,7 @@ db.connect()
   .then(async obj => {
     console.log('Database connected');
     obj.done();
-    await initDbIfEmpty(db);
-    await runMigrations(db);
+    await runMigrations(db, process.env.DB_MIGRATION_STRATEGY || 0);
   })
   .catch(err => console.error(err));
 
@@ -177,13 +153,62 @@ app.use(session({
   resave: false
 }));
 
+app.use(cookieParser());
+
+app.use(
+  bodyParser.urlencoded({
+    extended: true,
+    limit: '5mb',
+  })
+);
 
 //-----------------------------------------------------------------------  Auth Middleware  -----------------------------------------------------------------------\\
 
+//------------------------------------------------------------------------  API Routes  ------------------------------------------------------------------------\\
+
+//Check session variable
+// JWT Verification middleware
+const requireAuth = jwtVerify({
+  secret: process.env.SESSION_SECRET || 'supersecret',
+  algorithms: ['HS256'],
+  getToken: req => req.cookies.token,
+  credentialsRequired: false // Handle strictly in our own custom middleware
+});
+
+//Check authentication variable
 const auth = (req, res, next) => {
-  if (!req.session.user) return res.redirect('/login');
-  next();
+  requireAuth(req, res, async (err) => {
+    if (err || !req.auth) {
+      return res.redirect('/login');
+    }
+
+    // Check if token's user has logged out since it was issued
+    const email = req.auth.email;
+    const iat = req.auth.iat; // issued at (epoch seconds)
+    if (email && iat) {
+      try {
+        const logoutRecord = await db.oneOrNone('SELECT EXTRACT(EPOCH FROM logout_at) AS logout_seconds FROM user_logouts WHERE email = $1', [email]);
+        if (logoutRecord && logoutRecord.logout_seconds && iat < logoutRecord.logout_seconds) {
+          res.clearCookie('token');
+          return res.redirect('/login');
+        }
+      } catch (dbErr) {
+        console.error('Error checking user logouts:', dbErr);
+        return res.redirect('/login');
+      }
+    }
+
+    // Assign auth object to mock existing session.user references to prevent further code changes
+    req.session = req.session || {};
+    req.session.user = req.auth;
+    next();
+  });
 };
+
+function reissueToken(res, userPayload) {
+    const newToken = jwt.sign(userPayload, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '7d' });
+    res.cookie('token', newToken, { httpOnly: true });
+}
 
 
 //-----------------------------------------------------------------------  Routes  -----------------------------------------------------------------------\\
@@ -194,84 +219,92 @@ app.get('/login', (req, res) => {
   res.render('pages/login');
 });
 
-
-app.get('/welcome', (req, res) => {
-  res.json({ status: 'success', message: 'Welcome!' });
-});
-
-
-//---------------- LOGIN ----------------//
-
-app.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await db.oneOrNone('SELECT * FROM users WHERE username=$1', [username]);
-
-    if (!user) return res.render('pages/login', { loginError: 'Invalid username.' });
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.render('pages/login', { loginError: 'Invalid password.' });
-
-    req.session.user = user;
-    req.session.save(() => res.redirect('/home'));
-
-  } catch (err) {
-    res.render('pages/login', { loginError: 'Login error.' });
-  }
-});
-
-
-//---------------- EMAIL LOGIN ----------------//
-
 app.post('/email-login', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await db.oneOrNone('SELECT * FROM users WHERE email=$1', [email]);
 
-    if (!user) {
-      return res.render('pages/login', { loginError: 'Email not found.' });
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (email && email.endsWith('@example.com') && !isLocal) {
+      return res.render('pages/login', { loginError: 'Test accounts are only permitted from local connections.' });
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const user = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
+    if (!user) {
+      return res.redirect('/register?email=' + encodeURIComponent(email));
+    }
 
-    req.session.emailCode = code;
-    req.session.emailCodeEmail = email;
+    // Generate 6 digit code
+    let code;
+    if (email.endsWith('@example.com')) {
+      code = '123456';
+    } else {
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
 
-    if (resend) {
+    const pendingToken = jwt.sign({ action: 'login', email, codeHash }, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '15m' });
+    res.cookie('pending_token', pendingToken, { httpOnly: true });
+
+    if (email.endsWith('@example.com')) {
+       console.log(`[DEV] Skipped sending email for test user login.`);
+    } else if (resend) {
       await resend.emails.send({
-        from: 'onboarding@resend.dev',
+        from: 'onboarding@resend.abad.cc',
         to: email,
-        subject: 'Login Code',
-        html: `<h2>${code}</h2>`
+        subject: 'Your Login Code - Challenge Loop',
+        html: `Your login code is ${code}`
       });
     } else {
       console.log(`[DEV CODE]: ${code}`);
     }
 
     res.redirect('/verify-code');
-
   } catch (err) {
     res.render('pages/login', { loginError: 'Email error.' });
   }
 });
 
 app.get('/verify-code', (req, res) => {
-  if (!req.session.emailCodeEmail) return res.redirect('/login');
+  if (!req.cookies.pending_token) return res.redirect('/login');
   res.render('pages/verify-code');
 });
 
 app.post('/verify-code', async (req, res) => {
-  if (req.body.code === req.session.emailCode) {
-    const user = await db.one('SELECT * FROM users WHERE email=$1', [req.session.emailCodeEmail]);
-    req.session.user = user;
-    res.redirect('/home');
-  } else {
-    res.render('pages/verify-code', { error: 'Invalid code.' });
+  const { code } = req.body;
+  if (!req.cookies.pending_token) {
+    return res.redirect('/login');
+  }
+
+  try {
+      const decoded = jwt.verify(req.cookies.pending_token, process.env.SESSION_SECRET || 'supersecret');
+      const inputHash = crypto.createHash('sha256').update(code).digest('hex');
+
+      if (inputHash === decoded.codeHash) {
+          let user;
+          if (decoded.action === 'register') {
+              user = await db.one('INSERT INTO users(username, email) VALUES($1, $2) RETURNING id, username, email', [decoded.username, decoded.email]);
+              user.profile_picture = null;
+          } else {
+              user = await db.one('SELECT * FROM users WHERE email = $1', [decoded.email]);
+          }
+
+          reissueToken(res, { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture });
+          res.clearCookie('pending_token');
+          res.redirect('/home');
+      } else {
+          res.render('pages/verify-code', { error: 'Invalid code.' });
+      }
+  } catch (err) {
+      console.error(err);
+      res.render('pages/verify-code', { error: 'Session expired or error logging in.' });
   }
 });
 
-
-//---------------- REGISTER ----------------//
+app.get('/register', (req, res) => {
+  const email = req.query.email;
+  if (!email) return res.redirect('/login');
+  res.render('pages/register', { email });
+});
 
 app.post('/register', async (req, res) => {
 
@@ -280,35 +313,49 @@ app.post('/register', async (req, res) => {
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
 
   try {
-    const { username, email, password } = req.body;
-
-    if (!username || !email || !password) {
-      throw new Error('Missing required fields');
+    const { username, email } = req.body;
+    if (!username || !email || typeof username !== 'string' || typeof email !== 'string') {
+      throw new Error('Missing or invalid required fields');
     }
 
-    if (username.length < 8) {
-      throw new Error('Username must be at least 8 characters long.');
-    } else if (!usernameRegex.test(username)) {
-      throw new Error('Username can only contain letters, numbers, and underscores.');
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (email.endsWith('@example.com') && !isLocal) {
+      return res.render('pages/register', { email, registerError: 'Test accounts are only permitted from local connections.' });
     }
 
-    if (!emailRegex.test(email)) {
-      throw new Error('Please enter a valid email address.');
+    const existingUsername = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
+    if (existingUsername) {
+      return res.render('pages/register', { email, registerError: 'Username is already taken. Please pick another one.' });
     }
 
-    if (password.length < 8) {
-      throw new Error('Password must be at least 8 characters long.');
-    } else if (!passwordRegex.test(password)) {
-      throw new Error('Password must include uppercase, lowercase, and a number.');
+    let code;
+    if (email.endsWith('@example.com')) {
+      code = '123456';
+    } else {
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    const pendingToken = jwt.sign({ action: 'register', email, username, codeHash }, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '15m' });
+    res.cookie('pending_token', pendingToken, { httpOnly: true });
+
+    if (email.endsWith('@example.com')) {
+       console.log(`[DEV] Skipped sending email for test user registration.`);
+    } else if (resend) {
+      await resend.emails.send({
+        from: 'onboarding@resend.abad.cc',
+        to: email,
+        subject: 'Your Sign-up Code for Challenge Loop',
+        html: `Your sign-up code is: ${code}`
+      });
+    } else {
+      console.log(`[DEV] Sign-up code for ${email}: ${code}`);
     }
 
-    const hash = await bcrypt.hash(password, 10);
-    const user = await db.one('INSERT INTO users(username, email, password) VALUES($1, $2, $3) RETURNING id, username, email', [username, email, hash]);
-
-    req.session.user = { username: user.username, email: user.email, id: user.id };
-    req.session.save(() => res.redirect('/home'));
+    res.redirect('/verify-code');
   } catch (err) {
-    res.render('pages/login', { registerError: ('Registration failed. ' + err.message) || 'Registration failed. Username or email might already be taken.' });
+    console.error(err);
+    res.redirect('/login');
   }
 });
 
@@ -946,25 +993,123 @@ app.get('/profile', auth, (req, res) => {
 app.post('/profile/change-email', auth, async (req, res) => {
   try {
     const { new_email } = req.body;
+
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (new_email && new_email.endsWith('@example.com') && !isLocal) {
+      return res.redirect('/profile?error=email_taken');
+    }
+
     const userId = req.session.user.id;
     await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
-    req.session.user.email = new_email;
-    req.session.save(() => res.redirect('/profile?success=email'));
+    
+    // Reissue token with new email
+    const updatedUser = { ...req.session.user, email: new_email };
+    reissueToken(res, updatedUser);
+    
+    res.redirect('/profile?success=email');
   } catch (err) {
     console.error(err);
     res.redirect('/profile?error=email_taken');
   }
 });
 
+app.post('/profile/upload-picture', auth, async (req, res) => {
+  try {
+    const { image_data } = req.body;
+    if (!image_data || !image_data.startsWith('data:image/')) {
+      return res.redirect('/profile?error=no_image');
+    }
+    await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
+    
+    // Reissue token with new profile picture
+    const updatedUser = { ...req.session.user, profile_picture: image_data };
+    reissueToken(res, updatedUser);
 
-//---------------- LOGOUT ----------------//
+    res.redirect('/profile?success=picture');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/profile?error=server');
+  }
+});
 
-app.get('/logout', auth, (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+app.post('/profile/delete-account', auth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    await db.none('DELETE FROM users WHERE id = $1', [userId]);
+
+    res.clearCookie('token');
+    res.redirect('/login?message=account_deleted');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/profile?error=server');
+  }
+});
+
+app.get('/logout', async (req, res) => {
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.email) {
+        await db.none(`
+          INSERT INTO user_logouts (email, logout_at) 
+          VALUES ($1, CURRENT_TIMESTAMP) 
+          ON CONFLICT (email) DO UPDATE SET logout_at = CURRENT_TIMESTAMP
+        `, [decoded.email]);
+      }
+    } catch (err) {
+      console.error('Error revoking token on logout:', err);
+    }
+  }
+  res.clearCookie('token');
+  res.redirect('/login');
+});
+
+app.get('/admin/send-reminders', async (req, res) => {
+  // Send email based on database condition: challenge ending within 2 days
+  try {
+    const challengesEndingSoon = await db.any(`
+            SELECT c.id as challenge_id, c.title, c.end_date, u.email, u.username
+            FROM challenges c
+            JOIN user_challenges uc ON c.id = uc.challenge_id
+            JOIN users u ON uc.user_id = u.id
+            WHERE c.end_date <= CURRENT_DATE + INTERVAL '2 days'
+            AND c.end_date >= CURRENT_DATE
+        `);
+
+    let sentCount = 0;
+    for (const row of challengesEndingSoon) {
+      try {
+        if (resend) {
+          await resend.emails.send({
+            from: 'onboarding@resend.abad.cc',
+            to: row.email,
+            subject: `Challenge Ending Soon: ${row.title}`,
+            html: `<p>Hi ${row.username},</p><p>Your challenge "<strong>${row.title}</strong>" is ending on ${new Date(row.end_date).toLocaleDateString()}. Keep it up!</p>`
+          });
+        } else {
+          console.log(`[DEV] Skipping reminder email to ${row.email} for challenge "${row.title}" (no RESEND_API_KEY set)`);
+        }
+        sentCount++;
+      } catch (emailErr) {
+        console.error(`Failed to send to ${row.email}:`, emailErr);
+      }
+    }
+    res.json({ success: true, emailsSent: sentCount, totalEndingSoon: challengesEndingSoon.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 
 //-----------------------------------------------------------------------  Start Server  -----------------------------------------------------------------------\\
 
-module.exports = app.listen(3000);
-console.log('Server running on port 3000');
+// starting the server and keeping the connection open to listen for more requests
+
+const server = app.listen(3000);
+console.log('Server is listening on port 3000');
+
+server.db = db;
+server.pgp = pgp;
+module.exports = server;

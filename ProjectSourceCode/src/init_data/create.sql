@@ -9,7 +9,6 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
-    password CHAR(60) NOT NULL,
     profile_picture TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -20,6 +19,13 @@ CREATE TABLE user_preferences (
     category VARCHAR(50) NOT NULL,
     PRIMARY KEY (user_id, category)
 );
+
+-- Global User Logouts table
+CREATE TABLE user_logouts (
+    email VARCHAR(100) PRIMARY KEY,
+    logout_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- Challenges table
 CREATE TABLE challenges (

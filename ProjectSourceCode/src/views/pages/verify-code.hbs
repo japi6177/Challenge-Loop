@@ -20,7 +20,7 @@
       <form action="/verify-code" method="POST" class="mt-auto mb-auto">
         <div class="mb-3">
           <label class="form-label text-white-50 small text-uppercase fw-bold">Sign In Code</label>
-          <input type="text" class="form-control form-control-lg text-center" name="code" required placeholder="123456" maxlength="6" pattern="\d{6}" style="letter-spacing: 4px; font-size: 1.5rem;">
+          <input type="text" autocomplete="one-time-code" inputmode="numeric" class="form-control form-control-lg text-center" name="code" required placeholder="123456" maxlength="6" pattern="\d{6}" style="letter-spacing: 4px; font-size: 1.5rem;">
         </div>
         <button type="submit" class="btn btn-outline-light w-100 mt-2 py-3 fw-bold shadow-sm">Verify & Log In <i class="fa-solid fa-arrow-right ms-1"></i></button>
       </form>
