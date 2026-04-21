@@ -171,6 +171,12 @@ app.get('/login', (req, res) => {
 app.post('/email-login', async (req, res) => {
   try {
     const { email } = req.body;
+
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (email && email.endsWith('@example.com') && !isLocal) {
+      return res.render('pages/login', { loginError: 'Test accounts are only permitted from local connections.' });
+    }
+
     const user = await db.oneOrNone('SELECT * FROM users WHERE email = $1', [email]);
     if (!user) {
       return res.redirect('/register?email=' + encodeURIComponent(email));
@@ -194,8 +200,8 @@ app.post('/email-login', async (req, res) => {
       await resend.emails.send({
         from: 'onboarding@resend.abad.cc',
         to: email,
-        subject: 'Your Sign In Code - Challenge Loop',
-        html: `<h2>Welcome to Challenge Loop</h2><p>Your sign in code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>`
+        subject: 'Your Login Code - Challenge Loop',
+        html: `Your login code is ${code}`
       });
     } else {
       console.log(`[DEV] Email login code for ${email}: ${code}`);
@@ -257,6 +263,11 @@ app.post('/register', async (req, res) => {
       throw new Error('Missing or invalid required fields');
     }
 
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (email.endsWith('@example.com') && !isLocal) {
+      return res.render('pages/register', { email, registerError: 'Test accounts are only permitted from local connections.' });
+    }
+
     const existingUsername = await db.oneOrNone('SELECT * FROM users WHERE username = $1', [username]);
     if (existingUsername) {
       return res.render('pages/register', { email, registerError: 'Username is already taken. Please pick another one.' });
@@ -279,11 +290,11 @@ app.post('/register', async (req, res) => {
       await resend.emails.send({
         from: 'onboarding@resend.abad.cc',
         to: email,
-        subject: 'Your Verification Code - Challenge Loop',
-        html: `<h2>Welcome to Challenge Loop!</h2><p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${code}</strong></p>`
+        subject: 'Your Sign-up Code for Challenge Loop',
+        html: `Your sign-up code is: ${code}`
       });
     } else {
-      console.log(`[DEV] Registration code for ${email}: ${code}`);
+      console.log(`[DEV] Sign-up code for ${email}: ${code}`);
     }
 
     res.redirect('/verify-code');
@@ -681,6 +692,12 @@ app.get('/profile', auth, async (req, res) => {
 app.post('/profile/change-email', auth, async (req, res) => {
   try {
     const { new_email } = req.body;
+
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (new_email && new_email.endsWith('@example.com') && !isLocal) {
+      return res.redirect('/profile?error=email_taken');
+    }
+
     const userId = req.session.user.id;
     await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
     
