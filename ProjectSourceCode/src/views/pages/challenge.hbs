@@ -11,9 +11,26 @@
         <span class="badge px-3 py-2 rounded-pill" style="background: rgba(255,255,255,0.07); font-size: 0.85rem; color: white;">
           <i class="fa-solid {{iconForType challenge.challenge_type}} me-1" style="color: var(--primary);"></i>{{labelForType challenge.challenge_type}}
         </span>
+        {{#if challenge.enable_judging}}
+        <span class="badge px-3 py-2 rounded-pill" style="background: rgba(144,0,255,0.15); border: 1px solid rgba(144,0,255,0.4); font-size: 0.85rem; color: #c084fc;">
+          <i class="fa-solid fa-gavel me-1"></i>Judged
+        </span>
+        {{/if}}
       </div>
 
-      <h1 class="display-5 fw-bold mb-3">{{challenge.title}}</h1>
+      <div class="d-flex align-items-start justify-content-between gap-3 mb-3 flex-wrap">
+        <h1 class="display-5 fw-bold m-0">{{challenge.title}}</h1>
+        {{#if isCreator}}
+        <div class="d-flex gap-2 flex-shrink-0">
+          <a href="/challenge/{{challenge.id}}/edit" class="btn btn-sm px-3" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: white;">
+            <i class="fa-solid fa-pen me-1"></i>Edit
+          </a>
+          <a href="/challenge/{{challenge.id}}/delete" class="btn btn-sm px-3" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.4); color: #f87171;">
+            <i class="fa-solid fa-trash me-1"></i>Delete
+          </a>
+        </div>
+        {{/if}}
+      </div>
       <p class="text-white-50 lead mb-4">{{challenge.description}}</p>
 
       <!-- Countdown (visible when < 24h remain) -->
@@ -37,29 +54,62 @@
       {{#if userChallenge}}
       <div class="p-4 rounded-4 mb-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
         <h4 class="fw-bold mb-1"><i class="fa-regular fa-calendar-check me-2" style="color: var(--primary);"></i>Log Your Progress</h4>
+        {{#if challenge.enable_judging}}
+        <p class="text-white-50 small mb-4">This is a judged challenge — you must upload a photo as proof with every entry.</p>
+        {{else}}
         <p class="text-white-50 small mb-4">Update past entries or log today's value to maintain accuracy and climb the leaderboard.</p>
+        {{/if}}
 
-        <form action="/challenge/{{challenge.id}}/log" method="POST" class="d-flex align-items-end gap-3 flex-wrap">
-          <div style="flex: 1; min-width: 150px;">
-            <label class="form-label text-white-50 small text-uppercase fw-bold">Date</label>
-            <input type="date" class="form-control" name="date" value="{{today}}" max="{{today}}" required>
-          </div>
+        {{#if photoError}}
+        <div class="alert mb-3" style="background: rgba(255,59,59,0.1); border: 1px solid rgba(255,59,59,0.4); color: #ff6b6b;">
+          <i class="fa-solid fa-circle-exclamation me-2"></i>A photo is required for judged challenges.
+        </div>
+        {{/if}}
 
-          <div style="flex: 1; min-width: 150px;">
-            {{#if (eq challenge.entry_type 'amount')}}
-            <label class="form-label text-white-50 small text-uppercase fw-bold">Amount (Goal: {{challenge.daily_target}})</label>
-            <input type="number" step="0.01" class="form-control" name="amount" placeholder="e.g. 2.5">
-            {{else}}
-            <label class="form-label text-white-50 small text-uppercase fw-bold d-block">Did you complete it?</label>
-            <div class="form-check form-check-inline mt-2">
-              <input class="form-check-input" type="checkbox" name="completed" id="completedCheck">
-              <label class="form-check-label text-white" for="completedCheck">Yes, done!</label>
+        <form id="logForm" action="/challenge/{{challenge.id}}/log" method="POST" class="d-flex flex-column gap-3">
+          <input type="hidden" name="photo_data" id="photoDataInput">
+
+          <div class="d-flex align-items-end gap-3 flex-wrap">
+            <div style="flex: 1; min-width: 150px;">
+              <label class="form-label text-white-50 small text-uppercase fw-bold">Date</label>
+              <input type="date" class="form-control" name="date" value="{{today}}" max="{{today}}" required>
             </div>
-            {{/if}}
+
+            <div style="flex: 1; min-width: 150px;">
+              {{#if (eq challenge.entry_type 'amount')}}
+              <label class="form-label text-white-50 small text-uppercase fw-bold">Amount (Goal: {{challenge.daily_target}})</label>
+              <input type="number" step="0.01" class="form-control" name="amount" placeholder="e.g. 2.5">
+              {{else}}
+              <label class="form-label text-white-50 small text-uppercase fw-bold d-block">Did you complete it?</label>
+              <div class="form-check form-check-inline mt-2">
+                <input class="form-check-input" type="checkbox" name="completed" id="completedCheck">
+                <label class="form-check-label text-white" for="completedCheck">Yes, done!</label>
+              </div>
+              {{/if}}
+            </div>
           </div>
+
+          {{#if challenge.enable_judging}}
+          <div>
+            <label class="form-label text-white-50 small text-uppercase fw-bold">Proof Photo <span style="color:#ff6b6b;">*</span></label>
+            <div class="d-flex align-items-start gap-3 flex-wrap">
+              <div class="flex-grow-1">
+                <label for="photoFileInput" class="d-block w-100 rounded-3 text-center py-3 px-2" id="photoDropZone"
+                       style="border: 2px dashed rgba(144,0,255,0.4); background: rgba(144,0,255,0.05); cursor: pointer; transition: all 0.2s;">
+                  <i class="fa-solid fa-camera fs-4 mb-1 d-block" style="color: var(--secondary);"></i>
+                  <span class="text-white-50 small" id="photoLabel">Click to upload photo (max 8MB)</span>
+                </label>
+                <input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/gif,image/webp" class="d-none">
+              </div>
+              <div id="photoPreviewWrap" style="display:none;">
+                <img id="photoPreview" src="" alt="preview" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:2px solid rgba(144,0,255,0.5);">
+              </div>
+            </div>
+          </div>
+          {{/if}}
 
           <div>
-             <button type="submit" class="btn btn-neon pb-2 pt-2 px-4"><i class="fa-solid fa-floppy-disk me-1"></i> Save Entry</button>
+            <button type="submit" class="btn btn-neon pb-2 pt-2 px-4" id="saveEntryBtn"><i class="fa-solid fa-floppy-disk me-1"></i> Save Entry</button>
           </div>
         </form>
       </div>
@@ -68,17 +118,35 @@
       {{#if entries.length}}
       <ul class="list-group list-group-flush bg-transparent">
         {{#each entries}}
-        <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 px-0 d-flex justify-content-between align-items-center">
+        <li class="list-group-item bg-transparent text-white border-secondary border-opacity-25 px-0">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span class="text-white-50"><i class="fa-regular fa-calendar me-2"></i>{{this.entry_date}}</span>
-            {{#if (eq ../challenge.entry_type 'amount')}}
-              <span class="badge border border-light border-opacity-25 bg-dark px-3">{{this.amount}} recorded</span>
-            {{else}}
-              {{#if this.is_completed}}
-                <span class="badge" style="background: var(--primary); color: #000;">Completed <i class="fa-solid fa-check ms-1"></i></span>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              {{#if (eq ../challenge.entry_type 'amount')}}
+                <span class="badge border border-light border-opacity-25 bg-dark px-3">{{this.amount}} recorded</span>
               {{else}}
-                <span class="badge bg-danger">Not Completed</span>
+                {{#if this.is_completed}}
+                  <span class="badge" style="background: var(--primary); color: #000;">Completed <i class="fa-solid fa-check ms-1"></i></span>
+                {{else}}
+                  <span class="badge bg-danger">Not Completed</span>
+                {{/if}}
               {{/if}}
-            {{/if}}
+              {{#if ../challenge.enable_judging}}
+                {{#if (eq this.judge_status 'approved')}}
+                  <span class="badge" style="background: rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.5); color:#4ade80;"><i class="fa-solid fa-circle-check me-1"></i>Approved</span>
+                {{else if (eq this.judge_status 'rejected')}}
+                  <span class="badge" style="background: rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.5); color:#f87171;"><i class="fa-solid fa-circle-xmark me-1"></i>Rejected</span>
+                {{else}}
+                  <span class="badge" style="background: rgba(250,204,21,0.15); border:1px solid rgba(250,204,21,0.4); color:#fbbf24;"><i class="fa-solid fa-clock me-1"></i>Pending Review</span>
+                {{/if}}
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.photo_data}}
+          <div class="mt-2">
+            <img src="{{this.photo_data}}" alt="proof photo" style="height:64px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); cursor:pointer;" onclick="this.style.height=this.style.height==='64px'?'auto':'64px'">
+          </div>
+          {{/if}}
         </li>
         {{/each}}
       </ul>
@@ -135,13 +203,19 @@
 
   </div>
 
-  <div class="col-md-5">
+  <!-- ========== RIGHT COLUMN ========== -->
+  <div class="col-md-5 d-flex flex-column gap-4">
+
+    <!-- Leaderboard -->
     <div class="glass-card p-4">
       <div class="d-flex align-items-center gap-2 mb-1">
         <i class="fa-solid fa-earth-americas fs-4" style="color: var(--secondary);"></i>
         <h4 class="fw-bold m-0 text-white">Global Leaderboard</h4>
       </div>
-      <p class="text-white-50 small mb-4">Ranked by days completed out of {{total_days}} total.</p>
+      <p class="text-white-50 small mb-4">
+        Ranked by days completed out of {{total_days}} total.
+        {{#if challenge.enable_judging}}<span style="color:#c084fc;">Only approved entries count.</span>{{/if}}
+      </p>
 
       {{#if leaderboard.length}}
       <div class="d-flex flex-column gap-3">
@@ -149,12 +223,18 @@
         <div class="d-flex flex-column p-3 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
           <div class="d-flex align-items-center mb-2">
             <div class="fw-bold text-white-50 me-3" style="width: 20px;">#{{@index}}</div>
-            <div class="flex-grow-1 fw-bold text-white">{{this.username}}</div>
+            <div class="flex-grow-1 fw-bold text-white d-flex align-items-center gap-2">
+              {{this.username}}
+              {{#if this.is_judge}}
+              <span class="badge px-2 py-1 rounded-pill" style="background: rgba(144,0,255,0.2); border:1px solid rgba(144,0,255,0.45); color:#c084fc; font-size:0.65rem; font-weight:600; letter-spacing:0.5px;">
+                <i class="fa-solid fa-gavel me-1" style="font-size:0.6rem;"></i>Judge
+              </span>
+              {{/if}}
+            </div>
             <div class="text-end">
               <span class="fw-bold fs-5" style="color: var(--primary);">{{this.successful_days}}<span class="text-white-50 fs-6">/{{../total_days}}</span></span>
             </div>
           </div>
-          <!-- Today Progress Bar -->
           <div class="d-flex align-items-center">
              <small class="text-white-50 fw-bold me-2" style="font-size:0.6rem; width:45px; letter-spacing:1px;">TODAY</small>
              <div class="progress flex-grow-1 bg-dark" style="height: 6px; border-radius: 10px;">
@@ -169,6 +249,94 @@
         <p class="text-white-50">Nobody has recorded progress on this challenge yet. You could be first!</p>
       {{/if}}
     </div>
+
+    <!-- Judge Assignment Panel (creator only, judging enabled) -->
+    {{#if isCreator}}
+    {{#if challenge.enable_judging}}
+    <div class="glass-card p-4" style="border-color: rgba(144,0,255,0.3);">
+      <h5 class="fw-bold mb-1 text-white"><i class="fa-solid fa-gavel me-2" style="color: var(--secondary);"></i>Manage Judges</h5>
+      <p class="text-white-50 small mb-4">Assign any challenge participant as a judge. Judges can approve or reject entries. They can also compete themselves.</p>
+
+      {{#if participants.length}}
+      <div class="d-flex flex-column gap-2">
+        {{#each participants}}
+        <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);">
+          <span class="text-white fw-bold">
+            {{this.username}}
+            {{#if this.is_judge}}
+            <span class="badge ms-2 px-2 py-1 rounded-pill" style="background: rgba(144,0,255,0.2); border:1px solid rgba(144,0,255,0.45); color:#c084fc; font-size:0.65rem;">
+              <i class="fa-solid fa-gavel me-1" style="font-size:0.6rem;"></i>Judge
+            </span>
+            {{/if}}
+          </span>
+          {{#if this.is_judge}}
+          <form action="/challenge/{{../challenge.id}}/remove-judge" method="POST" class="m-0">
+            <input type="hidden" name="judge_id" value="{{this.id}}">
+            <button type="submit" class="btn btn-sm" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.4); color:#f87171; font-size:0.75rem;">Remove</button>
+          </form>
+          {{else}}
+          <form action="/challenge/{{../challenge.id}}/assign-judge" method="POST" class="m-0">
+            <input type="hidden" name="judge_id" value="{{this.id}}">
+            <button type="submit" class="btn btn-sm" style="background: rgba(144,0,255,0.1); border: 1px solid rgba(144,0,255,0.4); color:#c084fc; font-size:0.75rem;">Make Judge</button>
+          </form>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+        <p class="text-white-50 small">No participants yet. Share this challenge so people can join and you can assign judges.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <!-- Submissions Review Panel (judges only) -->
+    {{#if isJudge}}
+    <div class="glass-card p-4" style="border-color: rgba(144,0,255,0.3);">
+      <h5 class="fw-bold mb-1 text-white"><i class="fa-solid fa-inbox me-2" style="color: var(--secondary);"></i>Pending Submissions</h5>
+      <p class="text-white-50 small mb-4">Review each entry's proof photo and approve or reject it.</p>
+
+      {{#if submissions.length}}
+      <div class="d-flex flex-column gap-3">
+        {{#each submissions}}
+        <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);">
+          <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+            <div>
+              <span class="fw-bold text-white">{{this.username}}</span>
+              <small class="text-white-50 ms-2">{{this.entry_date}}</small>
+            </div>
+            <div class="d-flex gap-2">
+              <form action="/entry/{{this.id}}/approve" method="POST" class="m-0">
+                <button type="submit" class="btn btn-sm fw-bold" style="background: rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.5); color:#4ade80;">
+                  <i class="fa-solid fa-check me-1"></i>Approve
+                </button>
+              </form>
+              <form action="/entry/{{this.id}}/reject" method="POST" class="m-0">
+                <button type="submit" class="btn btn-sm fw-bold" style="background: rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4); color:#f87171;">
+                  <i class="fa-solid fa-xmark me-1"></i>Reject
+                </button>
+              </form>
+            </div>
+          </div>
+          {{#if this.photo_data}}
+          <img src="{{this.photo_data}}" alt="submission photo" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+          {{/if}}
+          <div class="mt-2 text-white-50 small">
+            {{#if (eq ../challenge.entry_type 'amount')}}
+              Logged: {{this.amount}}
+            {{else}}
+              {{#if this.is_completed}}Marked complete{{else}}Marked incomplete{{/if}}
+            {{/if}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+        <p class="text-white-50 small mb-0">No pending submissions right now. Check back after participants log their progress.</p>
+      {{/if}}
+    </div>
+    {{/if}}
+
   </div>
 </div>
 
@@ -178,4 +346,44 @@
   50% { box-shadow: 0 0 12px 4px rgba(255,59,59,0.25); }
 }
 .reminder-pulse { animation: reminderPulse 2s ease-in-out infinite; }
+#photoDropZone:hover { border-color: var(--secondary) !important; background: rgba(144,0,255,0.1) !important; }
 </style>
+
+{{#if challenge.enable_judging}}
+<script>
+(function() {
+  const fileInput  = document.getElementById('photoFileInput');
+  const dataInput  = document.getElementById('photoDataInput');
+  const preview    = document.getElementById('photoPreview');
+  const previewWrap = document.getElementById('photoPreviewWrap');
+  const label      = document.getElementById('photoLabel');
+  const form       = document.getElementById('logForm');
+
+  fileInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Photo must be under 8MB.');
+      this.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      dataInput.value = e.target.result;
+      preview.src = e.target.result;
+      previewWrap.style.display = 'block';
+      label.textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  form.addEventListener('submit', function(e) {
+    if (!dataInput.value) {
+      e.preventDefault();
+      alert('Please upload a proof photo before saving your entry.');
+      document.getElementById('photoDropZone').style.borderColor = 'rgba(255,59,59,0.7)';
+    }
+  });
+})();
+</script>
+{{/if}}
