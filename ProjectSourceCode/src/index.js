@@ -888,6 +888,24 @@ app.get('/profile/:username', auth, async (req, res) => {
       WHERE uc.user_id = $1
     `, [profileUser.id]);
 
+    const activeChallenges = await db.any(`
+      SELECT c.*, COALESCE(up.progress, 0) AS progress
+      FROM user_challenges uc
+      JOIN challenges c ON c.id = uc.challenge_id
+      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
+      WHERE uc.user_id = $1 AND COALESCE(up.progress, 0) < 100
+      ORDER BY c.end_date ASC
+    `, [profileUser.id]);
+
+    const completedChallenges = await db.any(`
+      SELECT c.*, COALESCE(up.progress, 0) AS progress
+      FROM user_challenges uc
+      JOIN challenges c ON c.id = uc.challenge_id
+      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
+      WHERE uc.user_id = $1 AND COALESCE(up.progress, 0) = 100
+      ORDER BY c.end_date DESC
+    `, [profileUser.id]);
+
     const errorMessages = {
       wrong_password: 'Current password is incorrect.',
       password_mismatch: 'New passwords do not match.',
@@ -907,6 +925,8 @@ app.get('/profile/:username', auth, async (req, res) => {
       isMe,
       activeCount: counts ? counts.active_count : 0,
       completedCount: counts ? counts.completed_count : 0,
+      activeChallenges,
+      completedChallenges,
       flashError: isMe ? errorMessages[req.query.error] || null : null,
       flashSuccess: isMe ? successMessages[req.query.success] || null : null,
       openEdit: isMe && !!(req.query.error || req.query.success)
