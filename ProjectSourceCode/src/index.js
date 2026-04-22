@@ -119,23 +119,41 @@ const requireAuth = jwtVerify({
 const auth = (req, res, next) => {
   requireAuth(req, res, async (err) => {
     if (err || !req.auth) {
+      console.log('[Auth] Invalid or missing token:', err ? err.message : 'No token payload');
+      res.clearCookie('token');
       return res.redirect('/login');
     }
 
     // Check if token's user has logged out since it was issued
     const email = req.auth.email;
     const iat = req.auth.iat; // issued at (epoch seconds)
-    if (email && iat) {
-      try {
-        const logoutRecord = await db.oneOrNone('SELECT EXTRACT(EPOCH FROM logout_at) AS logout_seconds FROM user_logouts WHERE email = $1', [email]);
-        if (logoutRecord && logoutRecord.logout_seconds && iat < logoutRecord.logout_seconds) {
-          res.clearCookie('token');
-          return res.redirect('/login');
+    
+    if (!email || !iat) {
+      console.log('[Auth] Token missing email or iat payload');
+      res.clearCookie('token');
+      return res.redirect('/login');
+    }
+
+    try {
+      const userRecord = await db.oneOrNone(`
+        SELECT u.id, EXTRACT(EPOCH FROM ul.logout_at) AS logout_seconds 
+        FROM users u 
+        LEFT JOIN user_logouts ul ON u.email = ul.email 
+        WHERE u.email = $1
+      `, [email]);
+      
+      if (!userRecord || (userRecord.logout_seconds && iat < userRecord.logout_seconds)) {
+        if (!userRecord) {
+          console.log(`[Auth] User not found for email: ${email}`);
+        } else {
+          console.log(`[Auth] Token revoked for email: ${email} (issued before logout)`);
         }
-      } catch (dbErr) {
-        console.error('Error checking user logouts:', dbErr);
+        res.clearCookie('token');
         return res.redirect('/login');
       }
+    } catch (dbErr) {
+      console.error('Error checking user logouts:', dbErr);
+      return res.redirect('/login');
     }
 
     // Assign auth object to mock existing session.user references to prevent further code changes
