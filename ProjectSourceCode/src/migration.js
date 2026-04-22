@@ -19,7 +19,7 @@ async function getInformationSchema(db, schemaName) {
 }
 
 async function runSQLFile(db, filename) {
-    const sqlPath = path.join(__dirname, filename);
+    const sqlPath = path.join(__dirname, 'init_data', filename);
     if (fs.existsSync(sqlPath)) {
         const sql = fs.readFileSync(sqlPath, 'utf8');
         await db.none(sql);

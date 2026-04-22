@@ -26,62 +26,8 @@ if (process.env.RESEND_API_KEY) {
 }
 
 
-const { runMigrations } = require('./init_data/migration');
+const { runMigrations } = require('./migration');
 
-// Runs ALTER TABLE / CREATE TABLE IF NOT EXISTS for new judging columns on existing databases
-async function runMigrations(database) {
-  try {
-    await database.none(`ALTER TABLE challenges ADD COLUMN IF NOT EXISTS creator_id INT REFERENCES users(id) ON DELETE SET NULL`);
-    await database.none(`ALTER TABLE challenges ADD COLUMN IF NOT EXISTS enable_judging BOOLEAN DEFAULT false`);
-    await database.none(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS photo_data TEXT`);
-    await database.none(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS judge_status VARCHAR(20) DEFAULT 'pending'`);
-    await database.none(`
-      CREATE TABLE IF NOT EXISTS judge_assignments (
-        id SERIAL PRIMARY KEY,
-        challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
-        judge_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(challenge_id, judge_id)
-      )
-    `);
-    // Recreate the view so it uses the new judging-aware logic
-    await database.none(`DROP VIEW IF EXISTS user_progress`);
-    await database.none(`
-      CREATE VIEW user_progress AS
-      WITH daily_sums AS (
-        SELECT
-          ce.user_challenge_id,
-          ce.entry_date,
-          c.enable_judging,
-          c.entry_type,
-          c.daily_target,
-          SUM(CASE WHEN NOT COALESCE(c.enable_judging, false) OR ce.judge_status = 'approved' THEN ce.amount ELSE 0 END) AS approved_amount,
-          BOOL_OR(ce.is_completed AND (NOT COALESCE(c.enable_judging, false) OR ce.judge_status = 'approved')) AS approved_done
-        FROM challenge_entries ce
-        JOIN user_challenges uc ON ce.user_challenge_id = uc.id
-        JOIN challenges c ON uc.challenge_id = c.id
-        GROUP BY ce.user_challenge_id, ce.entry_date, c.enable_judging, c.entry_type, c.daily_target
-      ),
-      successful_days AS (
-        SELECT ds.user_challenge_id, count(*) AS success_count
-        FROM daily_sums ds
-        WHERE (ds.entry_type = 'amount' AND ds.approved_amount >= ds.daily_target)
-           OR (ds.entry_type = 'checkbox' AND ds.approved_done)
-        GROUP BY ds.user_challenge_id
-      )
-      SELECT uc.id AS user_challenge_id, uc.user_id, uc.challenge_id,
-             COALESCE(sd.success_count, 0) AS successful_days,
-             (c.end_date - c.start_date + 1) AS total_days,
-             LEAST(ROUND((COALESCE(sd.success_count, 0)::numeric / NULLIF((c.end_date - c.start_date + 1)::numeric, 0)) * 100), 100) AS progress
-      FROM user_challenges uc
-      LEFT JOIN successful_days sd ON uc.id = sd.user_challenge_id
-      JOIN challenges c ON uc.challenge_id = c.id
-    `);
-    console.log('Migrations complete.');
-  } catch (err) {
-    console.error('Migration failed:', err);
-  }
-}
 
 
 //---------------------------------------------------------------------------  Setup  --------------------------------------------------------------------------\\
@@ -146,12 +92,6 @@ db.connect()
   .catch(err => console.error(err));
 
 
-// Session
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  saveUninitialized: false,
-  resave: false
-}));
 
 app.use(cookieParser());
 
