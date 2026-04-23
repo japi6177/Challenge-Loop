@@ -209,7 +209,11 @@
   if (btnGenerate && aiPrompt) {
     btnGenerate.addEventListener('click', async () => {
       const description = aiPrompt.value.trim();
-      if (!description) return;
+      if (!description) {
+        aiError.textContent = 'Please enter a description first.';
+        aiError.style.display = 'block';
+        return;
+      }
       
       aiLoading.style.display = 'block';
       aiError.style.display = 'none';
