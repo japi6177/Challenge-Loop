@@ -15,6 +15,12 @@ const {assert, expect} = chai;
 
 describe('Core Authentication Operations', () => {
 
+  before(async () => {
+    if (server.ready) {
+      await server.ready();
+    }
+  });
+
   after(async () => {
     if (server.shutdown) {
       await server.shutdown();

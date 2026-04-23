@@ -1133,4 +1133,6 @@ server.shutdown = async () => {
   });
 };
 
+server.ready = () => migrationPromise;
+
 module.exports = server;
