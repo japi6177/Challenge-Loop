@@ -1,105 +1,57 @@
-<div class="social-layout">
+<div class="container mt-5">
+  <div class="glass-card p-4">
+    <h2 class="fw-bold mb-4 text-center" style="color: var(--primary);">
+      People In Your Challenges
+    </h2>
 
-  <!-- LEFT SIDE -->
-  <div class="social-sidebar">
+    {{#if error}}
+      <div class="alert text-center">{{error}}</div>
+    {{/if}}
 
-    <div class="glass-card text-center profile-card">
-      <div class="profile-pic mb-3">
-        <i class="fa-solid fa-user fs-1 p-4 rounded-circle"
-           style="background: rgba(255,255,255,0.05); color: var(--primary);">
-        </i>
+    {{#if groupedChallenges.length}}
+      <div class="row g-4">
+        {{#each groupedChallenges}}
+          <div class="col-lg-4 col-md-6">
+              <a href="/challenge/{{this.id}}" class="text-decoration-none">
+            <div class="glass-card p-4 h-100 d-flex flex-column">
+
+              <h5 class="fw-bold mb-2" style="color: var(--primary);">
+                {{this.title}}
+              </h5>
+
+              <p class="text-white-50 small mb-3">
+                {{this.description}}
+              </p>
+
+              <div class="d-flex flex-column gap-2 mt-auto">
+                {{#each this.users}}
+                  <a href="/profile/{{this.username}}" class="text-decoration-none">
+                    <div class="d-flex align-items-center gap-2 p-2 rounded-3"
+                         style="background: rgba(255,255,255,0.04);">
+
+                      {{#if this.profile_picture}}
+                        <img src="{{this.profile_picture}}" class="rounded-circle"
+                             style="width:36px; height:36px; object-fit:cover;">
+                      {{else}}
+                        <i class="fa-solid fa-user-astronaut p-2 rounded-circle"
+                           style="background: rgba(255,255,255,0.05); color: var(--primary);"></i>
+                      {{/if}}
+
+                      <span class="text-white">{{this.username}}</span>
+                    </div>
+                  </a>
+                {{/each}}
+              </div>
+
+            </div>
+            </a>
+          </div>
+        {{/each}}
       </div>
-
-      <h5 class="fw-bold mb-2">{{user.username}}</h5>
-
-      <button type="button"
-              class="btn btn-neon w-100"
-              data-bs-toggle="modal"
-              data-bs-target="#statsModal">
-        View Stats
-      </button>
-    </div>
-
-  </div>
-
-  <!-- MIDDLE: FEED -->
-  <div class="social-feed">
-    <div class="glass-card p-4">
-      <h3 class="fw-bold mb-3">Activity Feed</h3>
-
-      <div class="text-center p-4 rounded"
-           style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15);">
-        <i class="fa-solid fa-stream fs-2 mb-3 text-white-50 opacity-50"></i>
-        <p class="text-white-50 m-0">
-          Your activity feed will appear here.
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT SIDE -->
-  <div class="social-main">
-    <!--friend leaderboard -->
-  <div class="social-main">
-    <div class="glass-card p-4">
-  <h3 class="fw-bold mb-3">Friends Leaderboard</h3>
-
-  {{#if friendsLeaderboard.length}}
-    <div class="d-flex flex-column gap-3">
-      {{#each friendsLeaderboard}}
-        <div class="p-3 rounded">
-          {{this.username}}
-        </div>
-      {{/each}}
-    </div>
-  {{else}}
-    <div class="text-center p-4 rounded"
-         style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15);">
-      <i class="fa-solid fa-users fs-2 mb-3 text-white-50 opacity-50"></i>
-      <p class="text-white-50 m-0">
-        friend leaderboard will appear here.
+    {{else}}
+      <p class="text-white-50 text-center mb-0">
+        You do not share any challenges with other users yet.
       </p>
-    </div>
-  {{/if}}
-</div>
-  </div>
-
-</div>
-
-  </div>
-
-</div>
-
-
-<!--profile modal -->
-<div class="modal fade" id="statsModal" tabindex="-1" aria-hidden="true" data-bs-theme="dark">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content glass-card p-0 overflow-hidden" style="background: var(--bg-color);">
-      
-      <div class="modal-header border-bottom border-light border-opacity-10">
-        <h5 class="modal-title fw-bold text-white">Your Stats</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <div class="modal-body p-4">
-        <div class="row text-center g-3">
-          <div class="col-6">
-            <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.03);">
-              <h2 class="fw-bold mb-1" style="color: var(--primary);">{{activeCount}}</h2>
-              <small class="text-white-50 text-uppercase">Active Challenges</small>
-            </div>
-          </div>
-
-          <div class="col-6">
-            <div class="p-3 rounded-4" style="background: rgba(255,255,255,0.03);">
-              <h2 class="fw-bold mb-1" style="color: var(--primary);">{{completedCount}}</h2>
-              <small class="text-white-50 text-uppercase">Completed</small>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
+    {{/if}}
   </div>
 </div>
-
