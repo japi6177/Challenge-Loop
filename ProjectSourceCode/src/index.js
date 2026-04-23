@@ -90,13 +90,33 @@ const dbConfig = {
 
 const db = pgp(dbConfig);
 
-const migrationPromise = db.connect()
-  .then(async obj => {
+const migrationPromise = (async () => {
+  // First ensure the database exists
+  const adminDbConfig = { ...dbConfig, database: 'postgres' };
+  const adminDb = pgp(adminDbConfig);
+  try {
+    const dbExists = await adminDb.oneOrNone('SELECT 1 FROM pg_database WHERE datname = $1', [dbConfig.database]);
+    if (!dbExists) {
+      console.log(`[Migration] Database "${dbConfig.database}" does not exist. Creating...`);
+      await adminDb.none(`CREATE DATABASE "${dbConfig.database}"`);
+      console.log(`[Migration] Database "${dbConfig.database}" created successfully.`);
+    }
+  } catch (err) {
+    console.error('[Migration] Error checking/creating database:', err.message);
+  } finally {
+    await adminDb.$pool.end();
+  }
+
+  // Now connect to the main database and run migrations
+  try {
+    const obj = await db.connect();
     console.log('Database connected');
     obj.done();
     await runMigrations(db, process.env.DB_MIGRATION_STRATEGY || 0);
-  })
-  .catch(err => console.error(err));
+  } catch (err) {
+    console.error(err);
+  }
+})();
 
 
 
