@@ -7,6 +7,8 @@ const server = require('../src/index.js'); //TODO: Make sure the path to your in
 const chai = require('chai'); // Chai HTTP provides an interface for live integration testing of the API's.
 const chaiHttpPlugin = require('chai-http').default || require('chai-http');
 const { request } = require('chai-http');
+const fs = require('fs');
+const path = require('path');
 
 chai.should();
 chai.use(chaiHttpPlugin);
@@ -50,7 +52,8 @@ describe('Core Authentication Operations', () => {
       });
   });
 
-  it('Email-first JWT Authentication Workflow', (done) => {
+  it('Email-first JWT Authentication Workflow', function(done) {
+    this.timeout(15000);
     const agent = request.agent(server);
     const dynamicEmail = `test${Date.now()}@example.com`;
     
@@ -120,15 +123,44 @@ describe('Core Authentication Operations', () => {
                                 .end((err7, res7) => {
                                   expect(res7).to.have.status(200);
                                   assert.include(res7.text, 'Welcome to Discover');
+                                  // 7.5 Test Image Upload & Compression
+                                  const validImage = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'funny_capybara.png')).toString('base64');
+                                  console.log(`\n      [Image Compression Test] Original Image Size (Base64 length): ${validImage.length} characters`);
                                   
-                                  // 8. Tear down via endpoint
                                   agent
-                                    .post('/profile/delete-account')
+                                    .post('/profile/upload-picture')
+                                    .send({ image_data: validImage })
                                     .redirects(0)
                                     .end((err8, res8) => {
+                                      if (err8 && !res8) {
+                                        console.error('      [Image Compression Test] Request failed:', err8.message);
+                                        return done(err8);
+                                      }
                                       expect(res8).to.have.status(302);
-                                      expect(res8.header.location).to.include('/login');
-                                      done();
+                                      expect(res8.header.location).to.equal('/profile?success=picture');
+                                      
+                                      // 7.6 Verify the image format changed to compressed jpeg
+                                      agent.get('/profile')
+                                        .end((err9, res9) => {
+                                          expect(res9.text).to.include('data:image/jpeg;base64');
+                                          expect(res9.text).to.not.include('data:image/png;base64');
+                                          
+                                          // Extract the returned compressed image string
+                                          const match = res9.text.match(/data:image\/jpeg;base64,[A-Za-z0-9+/=]+/);
+                                          if (match) {
+                                            console.log(`      [Image Compression Test] Compressed Image Size (Base64 length): ${match[0].length} characters\n`);
+                                          }
+                                          
+                                          // 8. Tear down via endpoint
+                                          agent
+                                            .post('/profile/delete-account')
+                                            .redirects(0)
+                                            .end((err10, res10) => {
+                                              expect(res10).to.have.status(302);
+                                              expect(res10.header.location).to.include('/login');
+                                              done();
+                                            });
+                                        });
                                     });
                                 });
                             });

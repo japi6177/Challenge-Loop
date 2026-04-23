@@ -34,6 +34,7 @@ if (process.env.GEMINI_API_KEY) {
 
 
 const { runMigrations } = require('./migration');
+const sharp = require('sharp');
 
 
 
@@ -198,8 +199,29 @@ const auth = (req, res, next) => {
 };
 
 function reissueToken(res, userPayload) {
-  const newToken = jwt.sign(userPayload, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '7d' });
+  const payloadToSign = { ...userPayload };
+  delete payloadToSign.iat;
+  delete payloadToSign.exp;
+  delete payloadToSign.nbf;
+  delete payloadToSign.profile_picture; // Prevent Header Overflow from massive base64 string
+  const newToken = jwt.sign(payloadToSign, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '7d' });
   res.cookie('token', newToken, { httpOnly: true });
+}
+
+async function compressImage(dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) return dataUrl;
+  try {
+    const base64Data = dataUrl.split(',')[1];
+    const buffer = Buffer.from(base64Data, 'base64');
+    const processedBuffer = await sharp(buffer)
+      .resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ mozjpeg: true })
+      .toBuffer();
+    return `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
+  } catch (err) {
+    console.error('Error compressing image:', err);
+    return dataUrl;
+  }
 }
 
 
@@ -281,7 +303,7 @@ app.post('/verify-code', async (req, res) => {
         user = await db.one('SELECT * FROM users WHERE email = $1', [decoded.email]);
       }
 
-      reissueToken(res, { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture });
+      reissueToken(res, { username: user.username, email: user.email, id: user.id });
       res.clearCookie('pending_token');
       res.redirect('/home');
     } else {
@@ -776,6 +798,8 @@ app.post('/challenge/:id/log', auth, async (req, res) => {
     const isCompleted = completed === 'on';
     const judgeStatus = challenge.enable_judging ? 'pending' : null;
 
+    const compressedPhoto = await compressImage(photo_data);
+
     const existing = await db.oneOrNone(
       'SELECT * FROM challenge_entries WHERE user_challenge_id=$1 AND entry_date=$2',
       [userChallenge.id, date]
@@ -786,14 +810,14 @@ app.post('/challenge/:id/log', auth, async (req, res) => {
         `UPDATE challenge_entries
          SET amount=$1, is_completed=$2, photo_data=$3, judge_status=$4
          WHERE id=$5`,
-        [amount || 0, isCompleted, photo_data || existing.photo_data || null,
+        [amount || 0, isCompleted, compressedPhoto || existing.photo_data || null,
         judgeStatus !== null ? judgeStatus : existing.judge_status, existing.id]
       );
     } else {
       await db.none(
         `INSERT INTO challenge_entries(user_challenge_id, entry_date, amount, is_completed, photo_data, judge_status)
          VALUES($1,$2,$3,$4,$5,$6)`,
-        [userChallenge.id, date, amount || 0, isCompleted, photo_data || null, judgeStatus]
+        [userChallenge.id, date, amount || 0, isCompleted, compressedPhoto || null, judgeStatus]
       );
     }
 
@@ -1206,11 +1230,8 @@ app.post('/profile/upload-picture', auth, async (req, res) => {
     if (!image_data || !image_data.startsWith('data:image/')) {
       return res.redirect('/profile?error=no_image');
     }
-    await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
-
-    // Reissue token with new profile picture
-    const updatedUser = { ...req.session.user, profile_picture: image_data };
-    reissueToken(res, updatedUser);
+    const compressedImage = await compressImage(image_data);
+    await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [compressedImage, req.session.user.id]);
 
     res.redirect('/profile?success=picture');
   } catch (err) {
