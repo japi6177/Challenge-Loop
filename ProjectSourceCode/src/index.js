@@ -25,6 +25,12 @@ if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY);
 }
 
+const { GoogleGenAI } = require('@google/genai');
+let ai = null;
+if (process.env.GEMINI_API_KEY) {
+  ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+}
+
 
 const { runMigrations } = require('./migration');
 
@@ -404,6 +410,55 @@ app.post('/update-preferences', auth, async (req, res) => {
 
 
 //---------------- CREATE CHALLENGE ----------------//
+
+app.post('/generate-challenge', auth, async (req, res) => {
+  try {
+    if (!ai) {
+      return res.status(500).json({ error: 'Gemini API not configured' });
+    }
+    const { description } = req.body;
+    if (!description) {
+      return res.status(400).json({ error: 'Description is required' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const prompt = `Based on the following user description, generate a complete challenge specification in JSON format.
+Current date: ${today}. Calculate start_date and end_date intelligently based on the description (e.g. "tomorrow", "for a week"). If unspecified, start_date is today and end_date is today + 7 days.
+
+User description: "${description}"`;
+
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        category: { type: "STRING", enum: ["Fitness", "Productivity", "Educational"] },
+        title: { type: "STRING", description: "Short, catchy title for the challenge" },
+        description: { type: "STRING", description: "A refined and detailed version of the user's description" },
+        entry_type: { type: "STRING", enum: ["checkbox", "amount"] },
+        daily_target: { type: "NUMBER", description: "The target amount per day (default 1 for checkbox)" },
+        start_date: { type: "STRING", description: "YYYY-MM-DD" },
+        end_date: { type: "STRING", description: "YYYY-MM-DD" },
+        challenge_type: { type: "STRING", enum: ["daily", "weekly", "monthly", "group"] },
+        enable_judging: { type: "BOOLEAN", description: "Whether photos/judging should be required" }
+      },
+      required: ["category", "title", "description", "entry_type", "daily_target", "start_date", "end_date", "challenge_type", "enable_judging"]
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: schema
+      }
+    });
+
+    const result = JSON.parse(response.text);
+    res.json(result);
+  } catch (err) {
+    console.error('Error generating challenge:', err);
+    res.status(500).json({ error: 'Failed to generate challenge' });
+  }
+});
 
 app.get('/create-challenge', auth, (req, res) => {
   res.render('pages/create-challenge', {
