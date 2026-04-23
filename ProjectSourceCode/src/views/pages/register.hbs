@@ -13,8 +13,8 @@
   <form action="/register" method="POST">
     <input type="hidden" name="email" value="{{email}}">
     <div class="mb-5">
-      <label class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
-      <input type="text" class="form-control" name="username" required placeholder="Pick a username" autocomplete="username">
+      <label for="username" class="form-label text-white-50 small text-uppercase fw-bold">Username</label>
+      <input type="text" id="username" class="form-control" name="username" required placeholder="Pick a username" autocomplete="username">
     </div>
     <button type="submit" class="btn btn-neon w-100 mt-2">Send Verification Code</button>
   </form>

@@ -31,144 +31,85 @@ describe('Core Authentication Operations', () => {
     }
   });
 
-  it('Returns the unified login page element', done => {
-    request.execute(server)
-      .get('/login')
-      .end((err, res) => {
-        expect(res).to.have.status(200);
-        assert.include(res.text, 'Enter the <span style="color: var(--primary);">Loop</span>');
-        done();
-      });
+  it('Returns the unified login page element', async () => {
+    const res = await request.execute(server).get('/login');
+    expect(res).to.have.status(200);
+    assert.include(res.text, 'Enter the <span style="color: var(--primary);">Loop</span>');
   });
 
-  it('Returns JSON data for admin reminders', done => {
-    request.execute(server)
-      .get('/admin/send-reminders')
-      .end((err, res) => {
-        expect(res).to.have.status(200);
-        expect(res.body).to.have.property('success');
-        expect(res.body).to.have.property('emailsSent');
-        done();
-      });
-  });
 
-  it('Email-first JWT Authentication Workflow', function(done) {
+
+  it('Email-first JWT Authentication Workflow', async function() {
     this.timeout(15000);
     const agent = request.agent(server);
     const dynamicEmail = `test${Date.now()}@example.com`;
     
     // 1. Submit email (not existing) -> Should redirect to /register
-    agent
-      .post('/email-login')
-      .send({ email: dynamicEmail })
-      .redirects(0)
-      .end((err, res) => {
-        expect(res).to.have.status(302);
-        expect(res.header.location).to.include('/register');
-        
-        // 2. Submit username to register
-        agent
-          .post('/register')
-          .send({ username: `testuser_${Date.now()}`, email: dynamicEmail })
-          .redirects(0)
-          .end((err2, res2) => {
-            expect(res2).to.have.status(302);
-            expect(res2.header.location).to.equal('/verify-code');
-            
-            // 3. Verify the static code 123456 to trigger Db insert
-            agent
-              .post('/verify-code')
-              .send({ code: '123456' })
-              .redirects(0)
-              .end((err3, res3) => {
-                expect(res3).to.have.status(302);
-                expect(res3.header.location).to.equal('/home');
-                
-                // 4. Test normal login flow now that user exists
-                agent
-                  .post('/email-login')
-                  .send({ email: dynamicEmail })
-                  .redirects(0)
-                  .end((err4, res4) => {
-                     expect(res4).to.have.status(302);
-                     expect(res4.header.location).to.equal('/verify-code');
+    let res = await agent.post('/email-login').send({ email: dynamicEmail }).redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.include('/register');
+    
+    // 2. Submit username to register
+    res = await agent.post('/register').send({ username: `testuser_${Date.now()}`, email: dynamicEmail }).redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.equal('/verify-code');
+    
+    // 3. Verify the static code 123456 to trigger Db insert
+    res = await agent.post('/verify-code').send({ code: '123456' }).redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.equal('/home');
+    
+    // 4. Test normal login flow now that user exists
+    res = await agent.post('/email-login').send({ email: dynamicEmail }).redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.equal('/verify-code');
 
-                      // 5. Verify the login code
-                      agent
-                        .post('/verify-code')
-                        .send({ code: '123456' })
-                        .redirects(0)
-                        .end((err5, res5) => {
-                          expect(res5).to.have.status(302);
-                          expect(res5.header.location).to.equal('/home');
+    // 5. Verify the login code
+    res = await agent.post('/verify-code').send({ code: '123456' }).redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.equal('/home');
 
-                          // 6. Verify Home Page Data
-                          agent
-                            .get('/home')
-                            .end((err6, res6) => {
-                              try {
-                                expect(res6).to.have.status(200);
-                                assert.include(res6.text, 'Active');
-                                assert.include(res6.text, 'Challenges');
-                                assert.include(res6.text, 'Your Stats');
-                              } catch (assertionErr) {
-                                console.log('Home page assertion failed!');
-                                console.log('Body snippet:', res6.text.substring(0, 1000));
-                                throw assertionErr;
-                              }
+    // 6. Verify Home Page Data
+    res = await agent.get('/home');
+    try {
+      expect(res).to.have.status(200);
+      assert.include(res.text, 'Active');
+      assert.include(res.text, 'Challenges');
+      assert.include(res.text, 'Your Stats');
+    } catch (assertionErr) {
+      console.log('Home page assertion failed!');
+      console.log('Body snippet:', res.text.substring(0, 1000));
+      throw assertionErr;
+    }
 
-                              // 7. Verify Discover Page Data
-                              agent
-                                .get('/discover')
-                                .end((err7, res7) => {
-                                  expect(res7).to.have.status(200);
-                                  assert.include(res7.text, 'Welcome to Discover');
-                                  // 7.5 Test Image Upload & Compression
-                                  const validImage = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'funny_capybara.png')).toString('base64');
-                                  console.log(`\n      [Image Compression Test] Original Image Size (Base64 length): ${validImage.length} characters`);
-                                  
-                                  agent
-                                    .post('/profile/upload-picture')
-                                    .send({ image_data: validImage })
-                                    .redirects(0)
-                                    .end((err8, res8) => {
-                                      if (err8 && !res8) {
-                                        console.error('      [Image Compression Test] Request failed:', err8.message);
-                                        return done(err8);
-                                      }
-                                      expect(res8).to.have.status(302);
-                                      expect(res8.header.location).to.equal('/profile?success=picture');
-                                      
-                                      // 7.6 Verify the image format changed to compressed jpeg
-                                      agent.get('/profile')
-                                        .end((err9, res9) => {
-                                          expect(res9.text).to.include('data:image/jpeg;base64');
-                                          expect(res9.text).to.not.include('data:image/png;base64');
-                                          
-                                          // Extract the returned compressed image string
-                                          const match = res9.text.match(/data:image\/jpeg;base64,[A-Za-z0-9+/=]+/);
-                                          if (match) {
-                                            console.log(`      [Image Compression Test] Compressed Image Size (Base64 length): ${match[0].length} characters\n`);
-                                          }
-                                          
-                                          // 8. Tear down via endpoint
-                                          agent
-                                            .post('/profile/delete-account')
-                                            .redirects(0)
-                                            .end((err10, res10) => {
-                                              expect(res10).to.have.status(302);
-                                              expect(res10.header.location).to.include('/login');
-                                              done();
-                                            });
-                                        });
-                                    });
-                                });
-                            });
-                        });
-                  });
-              });
-          });
-      });
+    // 7. Verify Discover Page Data
+    res = await agent.get('/discover');
+    expect(res).to.have.status(200);
+    assert.include(res.text, 'Welcome to Discover');
+    
+    // 7.5 Test Image Upload & Compression
+    const validImage = 'data:image/png;base64,' + fs.readFileSync(path.join(__dirname, 'funny_capybara.png')).toString('base64');
+    console.log(`\n      [Image Compression Test] Original Image Size (Base64 length): ${validImage.length} characters`);
+    
+    res = await agent.post('/profile/upload-picture').send({ image_data: validImage }).redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.equal('/profile?success=picture');
+    
+    // 7.6 Verify the image format changed to compressed jpeg
+    res = await agent.get('/profile');
+    expect(res.text).to.include('data:image/jpeg;base64');
+    expect(res.text).to.not.include('data:image/png;base64');
+    
+    // Extract the returned compressed image string
+    const match = res.text.match(/data:image\/jpeg;base64,[A-Za-z0-9+/=]+/);
+    if (match) {
+      console.log(`      [Image Compression Test] Compressed Image Size (Base64 length): ${match[0].length} characters\n`);
+    }
+    
+    // 8. Tear down via endpoint
+    res = await agent.post('/profile/delete-account').redirects(0);
+    expect(res).to.have.status(302);
+    expect(res.header.location).to.include('/login');
   });
 });
 

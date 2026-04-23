@@ -1274,42 +1274,7 @@ app.get('/logout', async (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/admin/send-reminders', async (req, res) => {
-  // Send email based on database condition: challenge ending within 2 days
-  try {
-    const challengesEndingSoon = await db.any(`
-            SELECT c.id as challenge_id, c.title, c.end_date, u.email, u.username
-            FROM challenges c
-            JOIN user_challenges uc ON c.id = uc.challenge_id
-            JOIN users u ON uc.user_id = u.id
-            WHERE c.end_date <= CURRENT_DATE + INTERVAL '2 days'
-            AND c.end_date >= CURRENT_DATE
-        `);
 
-    let sentCount = 0;
-    for (const row of challengesEndingSoon) {
-      try {
-        if (resend) {
-          await resend.emails.send({
-            from: 'onboarding@resend.abad.cc',
-            to: row.email,
-            subject: `Challenge Ending Soon: ${row.title}`,
-            html: `<p>Hi ${row.username},</p><p>Your challenge "<strong>${row.title}</strong>" is ending on ${new Date(row.end_date).toLocaleDateString()}. Keep it up!</p>`
-          });
-        } else {
-          console.log(`[DEV] Skipping reminder email to ${row.email} for challenge "${row.title}" (no RESEND_API_KEY set)`);
-        }
-        sentCount++;
-      } catch (emailErr) {
-        console.error(`Failed to send to ${row.email}:`, emailErr);
-      }
-    }
-    res.json({ success: true, emailsSent: sentCount, totalEndingSoon: challengesEndingSoon.length });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 
 //--------------------FRIENDS------------------------//
 
