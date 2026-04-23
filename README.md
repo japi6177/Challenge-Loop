@@ -1,22 +1,54 @@
-# CSCI-3308-group-project
-ChallengeLoop
+# 🚀 Getting Started
 
-Challenge Loop is about accomplishing day-to-day challenges that promote wellness. Users can pick daily, weekly, or monthly challenges to compete with friends or groups of people. 
+## Prerequisites
+To run this application locally, you need:
+- **Docker Desktop**: [Download here](https://www.docker.com/products/docker-desktop/)
+- **Node.js** (v18+ recommended): [Download here](https://nodejs.org/)
+- **An IDE** (e.g., VS Code)
 
-# Contributors
-Tahnee Xiong
-Peter Hindes
-Hunter Jamili
-Jacob Pierson
-Fynian Walker
+## How to Run Locally
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/peter/Challenge-Loop.git
+   cd Challenge-Loop/ProjectSourceCode
+   ```
+2. **Setup Environment Variables**:
+   Create a `.env` file in the `ProjectSourceCode` directory (see the "Environment Variables" section below for values).
+3. **Start the application**:
+   ```bash
+   docker compose up --build
+   ```
+4. **Access the app**:
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-# Technology Stack
-HTML
-CSS
-JavaScript
-NodeJs
+## How to Run Tests
+1. Ensure the docker containers are running.
+2. Run the following command from the `ProjectSourceCode` directory:
+   ```bash
+   npm test
+   ```
+   *Note: This will execute the Mocha/Chai integration tests in the `test/` folder.*
 
-## Environment Variables
+## Deployment
+The application is deployed on Render and can be accessed at:
+[Challenge Loop Live](https://challenge-loop.onrender.com) *(Update with your actual link if different)*
+
+---
+
+# 🔐 Security Note: Passwordless Authentication
+Challenge Loop uses a modern **Passwordless Authentication** model (Email + One-Time Verification Code).
+- **Security**: Instead of persistent passwords that can be breached, we use short-lived JWT tokens and 256-bit hashed OTP codes.
+- **Hashing**: All one-time verification codes are hashed using `SHA-256` before storage, fulfilling the security requirements of the project while providing a frictionless user experience.
+
+---
+
+# 🛠️ Technology Stack
+- **Frontend**: Handlebars (HBS), Vanilla CSS, Bootstrap
+- **Backend**: Node.js, Express
+- **Database**: PostgreSQL (pg-promise)
+- **Containerization**: Docker
+- **AI**: Google Gemini Flash (Challenge Generation)
+
 
 To run the project locally using Docker, you need to create a `.env` file inside the `ProjectSourceCode` directory with the following variables:
 

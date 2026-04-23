@@ -1,0 +1,205 @@
+:root {
+  --primary: #caff00;
+  /* Neon Lime */
+  --secondary: #9000ff;
+  /* Neon Purple */
+  --bg-color: #0f0f13;
+  --card-bg: #1c1c24;
+  --text: #f0f0f0;
+}
+
+body,
+html {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 25% 30%, rgba(42, 255, 122, 0.25), transparent 45%),
+    radial-gradient(circle at 75% 25%, rgba(125, 255, 179, 0.18), transparent 45%),
+    radial-gradient(circle at 50% 80%, rgba(0, 255, 140, 0.12), transparent 55%),
+    linear-gradient(135deg, #06110a 0%, #020805 100%);
+  color: #fff;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-container {
+  flex: 1;
+  padding: 3rem 1rem;
+}
+
+/* Dynamic Buttons */
+.btn-neon {
+  background: var(--primary);
+  color: #000;
+  border: none;
+  font-weight: 600;
+  padding: 0.75rem 1.75rem;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-neon:hover {
+  background: #e6ff66;
+  box-shadow: 0 0 15px var(--primary);
+  transform: translateY(-2px);
+}
+
+/* Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 2.5rem;
+  transition: transform 0.3s ease;
+}
+
+.form-control {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--primary);
+  box-shadow: none;
+  color: white;
+}
+
+/* Background blob */
+.bg-blob {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(144, 0, 255, 0.35), transparent 70%);
+  filter: blur(80px);
+  top: -150px;
+  left: -150px;
+  z-index: -1;
+  animation: floatBlob 18s ease-in-out infinite;
+}
+
+.bg-blob-2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(0, 200, 255, 0.3), transparent 70%);
+  filter: blur(80px);
+  bottom: -120px;
+  right: -120px;
+  z-index: -1;
+  animation: floatBlob 22s ease-in-out infinite reverse;
+}
+
+/* social page */
+.social-layout {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.social-sidebar {
+  width: 280px;
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.social-feed {
+  flex: 2;
+}
+
+.social-main {
+  flex: 1;
+}
+
+.nav-pills .nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.25s ease;
+}
+
+.nav-pills .nav-link:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-pills .nav-link.active {
+  background: rgba(202, 255, 0, 0.12);
+  color: var(--primary);
+  border-color: rgba(202, 255, 0, 0.35);
+  box-shadow: 0 0 15px rgba(202, 255, 0, 0.08);
+}
+
+.glass-card.p-3 {
+  padding: 1.25rem !important;
+}
+
+.glass-card a {
+  color: inherit;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(120deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.03) 50%,
+      transparent 70%);
+  pointer-events: none;
+  animation: shimmer 8s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes floatBlob {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(40px, -30px) scale(1.1);
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}

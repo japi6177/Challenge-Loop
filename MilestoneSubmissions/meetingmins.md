@@ -1,28 +1,45 @@
-we discussed features that are stiull missing including:
+# Team Meeting Minutes
 
-global vs friends leaderboard
-condense challenge data into modal box
-ability to post challengges
-ability to delete or edit past entries
-ability to comment on challenges
-ability to add friends
-ability to set profile pic
-ability to change password
-ability to change email
+## Week 2: April 6th, 2026
+**Decisions Made:**
+- Finalized core challenge tracking logic (checkbox vs. amount).
+- Initialized Docker environment and basic Postgres schema.
 
-global feed for challenges showing most popular challenges
-friends tab showing which challenges your friends are in and how far they got today
+**Alternative Actions Discussed:**
+- Discussed various database schemas; decided on a relational model for challenges and entries.
+- Considered using plain HTML but opted for Handlebars (HBS) for dynamic rendering.
 
-different durration challenges
+**Follow-up Items:**
+- **Peter:** Finalize Docker config.
+- **Tahnee:** Draft initial wireframes.
 
-stretch goal judges validate challenge pictures
+---
 
-make it not take you to a new page when doing quick enteris
-improve progress bar with day blocks and percentage of the day overlayed on the block
+## Week 3: April 13th, 2026
+**Decisions Made:**
+- **Feature Pivot**: Decided to implement a fallback for the Resend API so the app can run locally without a valid API key (codes print to console).
+- **Social Addition**: Agreed to add a `comments` table and backend routes to allow user interaction on challenges.
+- **Architecture**: Decided to store user statistics (active vs. completed) in a separate view for performance.
 
-# 4/6
-missing release notes. 
-  on project page
+**Alternative Actions Discussed:**
+- Discussed using a public API for challenges vs. user-generated; decided user-generated provides better "loop" engagement.
 
-# 4/13
-Check with the group about scope. 
+**Follow-up Items:**
+- **Hunter:** Implement the comments UI.
+- **Fynian:** Finalize user statistics view.
+
+---
+
+## Week 4: April 23rd, 2026
+**Decisions Made:**
+- **Major Refactor**: Voted to replace `express-session` with **JWT-based authentication** to simplify the stack and improve scalability.
+- **Security**: Implemented a `user_logouts` table to ensure tokens are revoked upon logout, fulfilling security requirements.
+- **AI Integration**: Chose **Google Gemini Flash** for the "AI Challenge Generator" over other models due to response speed.
+- **Database**: Decided to implement a **Strategy-based Migration Utility** to handle schema updates automatically during development.
+
+**Alternative Actions Discussed:**
+- Discussed implementing a global leaderboard; decided to prioritize the "Friends Social Feed" and "Friend Requests" to focus on community-building first.
+
+**Follow-up Items:**
+- **Group:** Renaming files for final milestone submission.
+- **Peter:** Final audit of README and test coverage.

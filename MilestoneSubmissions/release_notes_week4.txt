@@ -1,0 +1,44 @@
+Week 4 Release Notes
+April 13th - April 24th, 2026
+
+This final week of development was characterized by a major architectural refactor, the integration of advanced AI features, and a significant UI/UX overhaul of the social components.
+
+----------------------------------------
+
+Major Features
+- Transitioned authentication from express-session to JWT-based tokens stored in secure HTTP-only cookies.
+- Implemented a "Global Logout" mechanism using a server-side user_logouts revocation table.
+- Integrated Google Gemini AI to provide an "AI Challenge Generator" that builds custom challenges from natural language descriptions.
+- Launched a new "Social Feed" featuring Friend Requests and challenge activity from friends.
+- Added a "Judging System" allowing users to require photo proof for challenge entries.
+- Enabled "Challenge Editing" so creators can modify duration or targets after a challenge has started.
+
+----------------------------------------
+
+Frontend
+- Major UI overhaul of the Social and Discover pages for a more premium, responsive feel.
+- Added dynamic feedback and icons for challenge categories and types.
+- Integrated AI generation modals with real-time JSON parsing and form auto-filling.
+- Cleaned up navigation flows and profile page account management.
+
+----------------------------------------
+
+Backend / Database
+- Refactored the core server (index.js) to handle JWT verification and cookie-based state management.
+- Implemented a Strategy-based Migration Utility to automatically handle database schema updates without manual SQL execution.
+- Added support for automatic database creation if the target database does not exist on initialization.
+- Restricted test account logins (@example.com) to local connections for enhanced security.
+
+----------------------------------------
+
+Testing & Documentation
+- Updated the test suite to use chai-http agents for cross-request session testing.
+- Added a new automated test for the admin reminders JSON endpoint to verify data-returning routes.
+- Enhanced README.md with full prerequisites, installation steps, and security documentation.
+- Verified all core project requirements on the local production-ready environment.
+
+----------------------------------------
+
+Other
+- Finalized repository organization with the addition of the TeamMeetingLogs directory.
+- Updated all milestone submissions for final grading.

@@ -1,0 +1,31 @@
+Week 1 Release Notes
+March 24th - March 31st, 2026
+
+This initial week focused on project infrastructure, environment setup, and foundational database architecture.
+
+----------------------------------------
+
+Major Features
+- Initialized Project Repository with a standard group project structure.
+- Configured Docker Desktop environment with a multi-container setup (Node.js and PostgreSQL).
+- Drafted the initial Project Proposal and technical requirements document.
+
+----------------------------------------
+
+Frontend
+- Created barebones Handlebars templates for the Login and Register pages.
+- Set up the main application layout with Bootstrap integration.
+
+----------------------------------------
+
+Backend / Database
+- Designed the core relational schema for users, challenges, and participation logs.
+- Implemented the initial `create.sql` initialization script.
+- Set up the Node.js Express server with initial routing logic.
+- Configured environment variable management (.env) for local development.
+
+----------------------------------------
+
+Other
+- Verified basic connectivity between the Node.js application and the PostgreSQL database container.
+- Established team version control workflows and branch naming conventions.

@@ -38,7 +38,18 @@ describe('Core Authentication Operations', () => {
         done();
       });
   });
-/*
+
+  it('Returns JSON data for admin reminders', done => {
+    request.execute(server)
+      .get('/admin/send-reminders')
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+        expect(res.body).to.have.property('success');
+        expect(res.body).to.have.property('emailsSent');
+        done();
+      });
+  });
+
   it('Email-first JWT Authentication Workflow', (done) => {
     const agent = request.agent(server);
     const dynamicEmail = `test${Date.now()}@example.com`;
@@ -103,6 +114,5 @@ describe('Core Authentication Operations', () => {
           });
       });
   });
-  */
 });
 
