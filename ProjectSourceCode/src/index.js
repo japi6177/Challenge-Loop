@@ -89,7 +89,7 @@ const dbConfig = {
 
 const db = pgp(dbConfig);
 
-db.connect()
+const migrationPromise = db.connect()
   .then(async obj => {
     console.log('Database connected');
     obj.done();
@@ -1123,6 +1123,14 @@ app.get('/admin/send-reminders', async (req, res) => {
 const server = app.listen(3000);
 console.log('Server is listening on port 3000');
 
-server.db = db;
-server.pgp = pgp;
+server.shutdown = async () => {
+  await migrationPromise;
+  return new Promise((resolve) => {
+    server.close(() => {
+      pgp.end();
+      resolve();
+    });
+  });
+};
+
 module.exports = server;

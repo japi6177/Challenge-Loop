@@ -15,13 +15,12 @@ const {assert, expect} = chai;
 
 describe('Core Authentication Operations', () => {
 
-  after((done) => {
-    server.close(() => {
-      if (server.pgp) {
-        server.pgp.end();
-      }
-      done();
-    });
+  after(async () => {
+    if (server.shutdown) {
+      await server.shutdown();
+    } else {
+      server.close();
+    }
   });
 
   it('Returns the unified login page element', done => {
