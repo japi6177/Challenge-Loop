@@ -94,17 +94,13 @@ async function runMigrations(db, strategyString) {
 
     await db.none('DROP SCHEMA __schema_temp CASCADE;');
 
-    let needsRecreation = false;
-    const addColumnQueries = [];
+    const mergeQueries = [];
 
     // Compare schemas
     for (const tableName in targetSchema) {
         if (!publicSchema[tableName]) {
             console.log(`[Migration] New table detected: ${tableName}`);
-            // Can't easily merge a whole new table without extracting specific CREATE statements, 
-            // so we revert to wiping/recreate. 
-            needsRecreation = true;
-            break;
+            console.log(`[Migration] Will create table using create.sql with IF NOT EXISTS.`);
         } else {
             // Table exists, check columns
             for (const colName in targetSchema[tableName]) {
@@ -113,14 +109,7 @@ async function runMigrations(db, strategyString) {
 
                 if (!publicType) {
                     console.log(`[Migration] Missing column detected: ${tableName}.${colName} (${targetType})`);
-                    if (strategy === 2) {
-                        needsRecreation = true;
-                        break;
-                    } else if (strategy === 1) {
-                        // We do not know modifiers like UNIQUE or NOT NULL from information_schema easily,
-                        // so ALTER TABLE might fail if it's NOT NULL without a DEFAULT.
-                        addColumnQueries.push(`ALTER TABLE public."${tableName}" ADD COLUMN "${colName}" ${targetType};`);
-                    }
+                    mergeQueries.push(`ALTER TABLE public."${tableName}" ADD COLUMN "${colName}" ${targetType};`);
                 } else if (publicType !== targetType) {
                     // Soften postgres alias differences (e.g. character varying -> varchar)
                     const pType = publicType.toLowerCase();
@@ -133,54 +122,59 @@ async function runMigrations(db, strategyString) {
 
                     if (pType !== tType && isTypeChangeMajor) {
                         console.log(`[Migration] Unmergeable column type mismatch for ${tableName}.${colName}: Expected ${targetType}, got ${publicType}`);
-                        needsRecreation = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if (needsRecreation) break;
-    }
-
-    if (!needsRecreation) {
-        for (const tableName in publicSchema) {
-            if (!targetSchema[tableName]) {
-                console.log(`[Migration] Deleted table detected: ${tableName}`);
-                // Deletions are considered unmergeable or trigger Strategy 2
-                if (strategy === 1 || strategy === 2) {
-                    needsRecreation = true;
-                    break;
-                }
-            } else {
-                for (const colName in publicSchema[tableName]) {
-                    if (!targetSchema[tableName][colName]) {
-                        console.log(`[Migration] Deleted column detected: ${tableName}.${colName}`);
-                        // Deleting columns is unmergeable or triggers Strategy 2
-                        if (strategy === 1 || strategy === 2) {
-                            needsRecreation = true;
-                            break;
+                        if (strategy === 3) {
+                            console.log(`[Migration] Strategy 3: Ignoring unmergeable type mismatch.`);
+                        } else {
+                            console.log(`[Migration] Strategy ${strategy}: Dropping and recreating column due to type mismatch.`);
+                            mergeQueries.push(`ALTER TABLE public."${tableName}" DROP COLUMN "${colName}" CASCADE;`);
+                            mergeQueries.push(`ALTER TABLE public."${tableName}" ADD COLUMN "${colName}" ${targetType};`);
                         }
                     }
                 }
             }
-            if (needsRecreation) break;
         }
     }
 
-    if (needsRecreation) {
-        console.log('[Migration] Differences found requiring strict recreation (or Strategy 2). Wiping db...');
-        await recreateDatabase(db);
-    } else if (addColumnQueries.length > 0) {
-        console.log(`[Migration] Merging ${addColumnQueries.length} missing columns...`);
-        for (const query of addColumnQueries) {
+    for (const tableName in publicSchema) {
+        if (!targetSchema[tableName]) {
+            console.log(`[Migration] Deleted table detected: ${tableName}`);
+            if (strategy === 3) {
+                console.log(`[Migration] Strategy 3: Ignoring deleted table.`);
+            } else {
+                console.log(`[Migration] Strategy ${strategy}: Dropping table.`);
+                mergeQueries.push(`DROP TABLE public."${tableName}" CASCADE;`);
+                mergeQueries.push(`DROP VIEW IF EXISTS public."${tableName}" CASCADE;`);
+            }
+        } else {
+            for (const colName in publicSchema[tableName]) {
+                if (!targetSchema[tableName][colName]) {
+                    console.log(`[Migration] Deleted column detected: ${tableName}.${colName}`);
+                    if (strategy === 3) {
+                        console.log(`[Migration] Strategy 3: Ignoring deleted column.`);
+                    } else {
+                        console.log(`[Migration] Strategy ${strategy}: Dropping column.`);
+                        mergeQueries.push(`ALTER TABLE public."${tableName}" DROP COLUMN "${colName}" CASCADE;`);
+                    }
+                }
+            }
+        }
+    }
+
+    console.log('[Migration] Ensuring all tables/views/indexes exist using IF NOT EXISTS...');
+    try {
+        await runSQLFile(db, 'create.sql');
+    } catch (err) {
+        console.error('[Migration] Error running create.sql for missing tables:', err.message);
+    }
+
+    if (mergeQueries.length > 0) {
+        console.log(`[Migration] Executing ${mergeQueries.length} merge queries...`);
+        for (const query of mergeQueries) {
             try {
                 await db.none(query);
                 console.log(`  ✔ Executed: ${query}`);
             } catch(e) {
-                console.error(`[Migration] Error adding column (${query}):`, e.message);
-                console.log('[Migration] Mismatch was unmergeable. Falling back to recreate...');
-                await recreateDatabase(db);
-                break;
+                console.error(`[Migration] Error executing query (${query}):`, e.message);
             }
         }
     } else {

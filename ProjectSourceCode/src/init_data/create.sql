@@ -5,7 +5,7 @@
 -- DROP TABLE IF EXISTS users CASCADE;
 
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -14,21 +14,21 @@ CREATE TABLE users (
 );
 
 -- User preferences table
-CREATE TABLE user_preferences (
+CREATE TABLE IF NOT EXISTS user_preferences (
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category VARCHAR(50) NOT NULL,
     PRIMARY KEY (user_id, category)
 );
 
 -- Global User Logouts table
-CREATE TABLE user_logouts (
+CREATE TABLE IF NOT EXISTS user_logouts (
     email VARCHAR(100) PRIMARY KEY,
     logout_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 
 -- Challenges table
-CREATE TABLE challenges (
+CREATE TABLE IF NOT EXISTS challenges (
     id SERIAL PRIMARY KEY,
     category VARCHAR(50) NOT NULL,
     title VARCHAR(100) NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE challenges (
 );
 
 -- User participation (join table)
-CREATE TABLE user_challenges (
+CREATE TABLE IF NOT EXISTS user_challenges (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
@@ -54,11 +54,11 @@ CREATE TABLE user_challenges (
 );
 
 -- Add indexes for faster querying
-CREATE INDEX idx_user_challenges_user_id ON user_challenges(user_id);
-CREATE INDEX idx_user_challenges_challenge_id ON user_challenges(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_user_challenges_user_id ON user_challenges(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_challenges_challenge_id ON user_challenges(challenge_id);
 
 -- Challenge entries for daily tracking
-CREATE TABLE challenge_entries (
+CREATE TABLE IF NOT EXISTS challenge_entries (
     id SERIAL PRIMARY KEY,
     user_challenge_id INT NOT NULL REFERENCES user_challenges(id) ON DELETE CASCADE,
     entry_date DATE NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE challenge_entries (
 );
 
 -- Judge assignments
-CREATE TABLE judge_assignments (
+CREATE TABLE IF NOT EXISTS judge_assignments (
     id SERIAL PRIMARY KEY,
     challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
     judge_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -78,7 +78,7 @@ CREATE TABLE judge_assignments (
 );
 
 -- Comments for challenges
-CREATE TABLE challenge_comments (
+CREATE TABLE IF NOT EXISTS challenge_comments (
     id SERIAL PRIMARY KEY,
     challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -87,7 +87,7 @@ CREATE TABLE challenge_comments (
 );
 
 -- Friend Table
-CREATE TABLE friends (
+CREATE TABLE IF NOT EXISTS friends (
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   friend_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -96,11 +96,11 @@ CREATE TABLE friends (
   CHECK (user_id <> friend_id)
 );
 
-CREATE INDEX idx_challenge_comments_challenge_id ON challenge_comments(challenge_id);
-CREATE INDEX idx_challenge_comments_user_id ON challenge_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_comments_challenge_id ON challenge_comments(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_comments_user_id ON challenge_comments(user_id);
 
 -- Progress view — when judging is enabled, only approved entries count toward successful days
-CREATE VIEW user_progress AS
+CREATE OR REPLACE VIEW user_progress AS
 WITH daily_sums AS (
   SELECT
     ce.user_challenge_id,
