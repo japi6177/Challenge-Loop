@@ -264,12 +264,21 @@ app.post('/email-login', async (req, res) => {
     if (email.endsWith('@example.com')) {
       console.log(`[DEV] Skipped sending email for test user login.`);
     } else if (resend) {
-      await resend.emails.send({
-        from: 'onboarding@resend.abad.cc',
-        to: email,
-        subject: 'Your Login Code - Challenge Loop',
-        html: `Your login code is ${code}`
-      });
+      try {
+        const { error } = await resend.emails.send({
+          from: 'onboarding@resend.abad.cc',
+          to: email,
+          subject: 'Your Login Code - Challenge Loop',
+          html: `Your login code is ${code}`
+        });
+        if (error) {
+          console.error('[Resend Error]', error);
+          console.log(`[DEV CODE]: ${code}`);
+        }
+      } catch (err) {
+        console.error('[Resend Exception]', err);
+        console.log(`[DEV CODE]: ${code}`);
+      }
     } else {
       console.log(`[DEV CODE]: ${code}`);
     }
@@ -358,12 +367,21 @@ app.post('/register', async (req, res) => {
     if (email.endsWith('@example.com')) {
       console.log(`[DEV] Skipped sending email for test user registration.`);
     } else if (resend) {
-      await resend.emails.send({
-        from: 'onboarding@resend.abad.cc',
-        to: email,
-        subject: 'Your Sign-up Code for Challenge Loop',
-        html: `Your sign-up code is: ${code}`
-      });
+      try {
+        const { error } = await resend.emails.send({
+          from: 'onboarding@resend.abad.cc',
+          to: email,
+          subject: 'Your Sign-up Code for Challenge Loop',
+          html: `Your sign-up code is: ${code}`
+        });
+        if (error) {
+          console.error('[Resend Error]', error);
+          console.log(`[DEV] Sign-up code for ${email}: ${code}`);
+        }
+      } catch (err) {
+        console.error('[Resend Exception]', err);
+        console.log(`[DEV] Sign-up code for ${email}: ${code}`);
+      }
     } else {
       console.log(`[DEV] Sign-up code for ${email}: ${code}`);
     }
