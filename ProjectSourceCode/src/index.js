@@ -20,6 +20,7 @@ const jwt = require('jsonwebtoken');
 const { expressjwt: jwtVerify } = require('express-jwt');
 const crypto = require('crypto');
 const { Resend } = require('resend'); // email client
+const Groq = require('groq-sdk');
 let resend = null;
 if (process.env.RESEND_API_KEY) {
   resend = new Resend(process.env.RESEND_API_KEY);
@@ -1057,6 +1058,142 @@ app.get('/admin/send-reminders', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+//---------------- AI RECOMMENDER ----------------//
+
+app.get('/ai/recommend', auth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+
+    const challenges = await db.any(`
+      SELECT c.title, c.category, c.challenge_type, c.entry_type, c.daily_target,
+             COALESCE(up.successful_days, 0) AS successful_days,
+             up.total_days,
+             COALESCE(up.progress, 0) AS progress
+      FROM user_challenges uc
+      JOIN challenges c ON c.id = uc.challenge_id
+      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
+      WHERE uc.user_id = $1
+      ORDER BY uc.joined_at DESC
+    `, [userId]);
+
+    res.render('pages/ai-recommend', {
+      user: req.session.user,
+      hasChallenges: challenges.length > 0,
+      recommendation: null,
+      today: new Date().toISOString().split('T')[0],
+      error: null
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/home');
+  }
+});
+
+app.post('/ai/recommend', auth, async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.render('pages/ai-recommend', {
+        user: req.session.user,
+        hasChallenges: true,
+        recommendation: null,
+        error: 'AI recommendations require a GROQ_API_KEY in your environment variables.'
+      });
+    }
+
+    const challenges = await db.any(`
+      SELECT c.title, c.category, c.challenge_type, c.entry_type, c.daily_target,
+             COALESCE(up.successful_days, 0) AS successful_days,
+             up.total_days,
+             COALESCE(up.progress, 0) AS progress
+      FROM user_challenges uc
+      JOIN challenges c ON c.id = uc.challenge_id
+      LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
+      WHERE uc.user_id = $1
+      ORDER BY uc.joined_at DESC
+    `, [userId]);
+
+    if (!challenges.length) {
+      return res.render('pages/ai-recommend', {
+        user: req.session.user,
+        hasChallenges: false,
+        recommendation: null,
+        error: null
+      });
+    }
+
+    const challengeSummary = challenges.map(c =>
+      `- "${c.title}" (${c.category}, ${c.challenge_type}): ${c.successful_days}/${c.total_days || '?'} days completed (${c.progress}% progress)`
+    ).join('\n');
+
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a personal challenge coach for Challenge Loop, a habit tracking app.
+Users track daily habits across three categories: Fitness, Productivity, and Educational.
+Challenge types are: daily (1 day), weekly (7 days), monthly (30 days), or group (custom).
+Entry types are: checkbox (did it or not) or amount (track a number like steps or pages).
+
+Based on a user's challenge history, recommend ONE new challenge that would suit them.
+Respond with ONLY valid JSON in this exact format, no extra text:
+{
+  "title": "short challenge title (max 60 chars)",
+  "description": "one or two sentence description of the challenge",
+  "category": "Fitness or Productivity or Educational",
+  "challenge_type": "daily or weekly or monthly or group",
+  "entry_type": "checkbox or amount",
+  "daily_target": 1,
+  "reasoning": "2-3 sentences explaining why this challenge suits this user based on their history"
+}`
+        },
+        {
+          role: 'user',
+          content: `Here is my challenge history:\n${challengeSummary}\n\nPlease recommend a new challenge for me.`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 400
+    });
+
+    const raw = completion.choices[0].message.content.trim();
+
+    let recommendation;
+    try {
+      recommendation = JSON.parse(raw);
+    } catch {
+      return res.render('pages/ai-recommend', {
+        user: req.session.user,
+        hasChallenges: true,
+        recommendation: null,
+        error: 'The AI returned an unexpected response. Please try again.'
+      });
+    }
+
+    res.render('pages/ai-recommend', {
+      user: req.session.user,
+      hasChallenges: true,
+      recommendation,
+      today: new Date().toISOString().split('T')[0],
+      error: null
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.render('pages/ai-recommend', {
+      user: req.session.user,
+      hasChallenges: true,
+      recommendation: null,
+      error: 'Something went wrong talking to the AI. Please try again.'
+    });
   }
 });
 

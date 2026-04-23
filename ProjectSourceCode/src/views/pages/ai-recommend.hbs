@@ -1,0 +1,106 @@
+<div class="row w-100 justify-content-center mt-4 px-md-4">
+  <div class="col-md-7 col-lg-6">
+
+    <div class="glass-card p-5">
+      <div class="text-center mb-4">
+        <div class="d-inline-flex p-3 rounded-circle mb-3" style="background: rgba(144,0,255,0.12);">
+          <i class="fa-solid fa-wand-magic-sparkles fs-2" style="color: var(--secondary);"></i>
+        </div>
+        <h2 class="fw-bold text-white mb-1">AI Challenge Recommender</h2>
+        <p class="text-white-50">Based on your challenge history, the AI will suggest a new challenge tailored to you.</p>
+      </div>
+
+      {{#if error}}
+      <div class="alert mb-4" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.4); color: #f87171;">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>{{error}}
+      </div>
+      {{/if}}
+
+      {{#unless hasChallenges}}
+      <div class="text-center py-4">
+        <p class="text-white-50 mb-3">You haven't joined any challenges yet. Join a few first so the AI has something to work with!</p>
+        <a href="/discover" class="btn btn-neon">Browse Challenges</a>
+      </div>
+      {{else}}
+
+      {{#if recommendation}}
+      <!-- Recommendation Result -->
+      <div class="p-4 rounded-4 mb-4" style="background: rgba(144,0,255,0.07); border: 1px solid rgba(144,0,255,0.3);">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="fa-solid fa-star" style="color: var(--secondary);"></i>
+          <span class="text-white-50 small text-uppercase fw-bold" style="letter-spacing:1px;">Recommended For You</span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <span class="badge px-3 py-2 rounded-pill" style="background: var(--secondary); font-size:0.8rem;">{{recommendation.category}}</span>
+          <span class="badge px-3 py-2 rounded-pill" style="background: rgba(255,255,255,0.07); color:white; font-size:0.8rem;">
+            <i class="fa-solid {{iconForType recommendation.challenge_type}} me-1" style="color:var(--primary);"></i>{{labelForType recommendation.challenge_type}}
+          </span>
+          <span class="badge px-3 py-2 rounded-pill" style="background: rgba(255,255,255,0.07); color:white; font-size:0.8rem;">
+            {{#if (eq recommendation.entry_type 'amount')}}
+              <i class="fa-solid fa-hashtag me-1" style="color:var(--primary);"></i>Amount
+            {{else}}
+              <i class="fa-solid fa-check me-1" style="color:var(--primary);"></i>Checkbox
+            {{/if}}
+          </span>
+        </div>
+
+        <h3 class="fw-bold text-white mb-2">{{recommendation.title}}</h3>
+        <p class="text-white-50 mb-4">{{recommendation.description}}</p>
+
+        <div class="p-3 rounded-3 mb-4" style="background: rgba(255,255,255,0.03); border-left: 3px solid var(--secondary);">
+          <p class="text-white-50 small mb-0"><i class="fa-solid fa-robot me-2" style="color:var(--secondary);"></i>{{recommendation.reasoning}}</p>
+        </div>
+
+        <form action="/create-challenge" method="POST">
+          <input type="hidden" name="title" value="{{recommendation.title}}">
+          <input type="hidden" name="description" value="{{recommendation.description}}">
+          <input type="hidden" name="category" value="{{recommendation.category}}">
+          <input type="hidden" name="challenge_type" value="{{recommendation.challenge_type}}">
+          <input type="hidden" name="entry_type" value="{{recommendation.entry_type}}">
+          <input type="hidden" name="daily_target" value="{{recommendation.daily_target}}">
+          <input type="hidden" name="start_date" value="{{today}}">
+          <input type="hidden" name="end_date" id="autoEndDate">
+          <div class="d-flex gap-3">
+            <button type="submit" class="btn btn-neon flex-grow-1">
+              <i class="fa-solid fa-plus me-2"></i>Create This Challenge
+            </button>
+            <button type="button" class="btn px-4" style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); color:white;" onclick="document.getElementById('recommendForm').submit()">
+              <i class="fa-solid fa-rotate-right me-1"></i>Try Again
+            </button>
+          </div>
+        </form>
+      </div>
+      {{/if}}
+
+      <!-- Generate Form -->
+      <form id="recommendForm" action="/ai/recommend" method="POST">
+        {{#unless recommendation}}
+        <button type="submit" class="btn btn-neon w-100 py-3">
+          <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate My Recommendation
+        </button>
+        {{/unless}}
+      </form>
+
+      {{/unless}}
+
+      <div class="text-center mt-4">
+        <a href="/home" class="text-white-50 text-decoration-none small">Back to Dashboard</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Auto-calculate end date for the create form based on challenge_type
+(function() {
+  const type = '{{recommendation.challenge_type}}';
+  const today = new Date();
+  let end = new Date(today);
+  if (type === 'weekly') end.setDate(today.getDate() + 6);
+  else if (type === 'monthly') end.setDate(today.getDate() + 29);
+  const endField = document.getElementById('autoEndDate');
+  if (endField) endField.value = end.toISOString().split('T')[0];
+})();
+</script>

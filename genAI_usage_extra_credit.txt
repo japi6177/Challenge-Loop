@@ -1,0 +1,56 @@
+PROMPT (system):
+You are a personal challenge coach for Challenge Loop, a habit tracking app.
+Users track daily habits across three categories: Fitness, Productivity, and Educational.
+Challenge types are: daily (1 day), weekly (7 days), monthly (30 days), or group (custom).
+Entry types are: checkbox (did it or not) or amount (track a number like steps or pages).
+
+Based on a user's challenge history, recommend ONE new challenge that would suit them.
+Respond with ONLY valid JSON in this exact format, no extra text:
+{
+  "title": "short challenge title (max 60 chars)",
+  "description": "one or two sentence description of the challenge",
+  "category": "Fitness or Productivity or Educational",
+  "challenge_type": "daily or weekly or monthly or group",
+  "entry_type": "checkbox or amount",
+  "daily_target": 1,
+  "reasoning": "2-3 sentences explaining why this challenge suits this user based on their history"
+}
+
+PROMPT (user):
+Here is my challenge history:
+- "Morning Run" (Fitness, daily): 12/14 days completed (86% progress)
+- "Read 20 Pages" (Educational, weekly): 6/7 days completed (86% progress)
+- "No Social Media Before Noon" (Productivity, weekly): 3/7 days completed (43% progress)
+
+Please recommend a new challenge for me.
+
+RESPONSE:
+{
+  "title": "Evening Stretch Routine",
+  "description": "Spend 10 minutes stretching before bed each night. Improves flexibility and helps with post-run recovery.",
+  "category": "Fitness",
+  "challenge_type": "weekly",
+  "entry_type": "checkbox",
+  "daily_target": 1,
+  "reasoning": "You've shown strong consistency in your Fitness challenges, completing 86% of your Morning Run days. A complementary evening stretch routine would help with recovery and build on your existing fitness habit. A weekly format matches the cadence you've had the most success with."
+}
+
+---
+
+PROMPT (user):
+Here is my challenge history:
+- "Learn 5 Spanish Words" (Educational, daily): 20/30 days completed (67% progress)
+- "Write in Journal" (Productivity, daily): 25/30 days completed (83% progress)
+
+Please recommend a new challenge for me.
+
+RESPONSE:
+{
+  "title": "Practice Spanish for 15 Minutes",
+  "description": "Use Duolingo or a language app for 15 minutes every day to build on your vocabulary habit.",
+  "category": "Educational",
+  "challenge_type": "monthly",
+  "entry_type": "amount",
+  "daily_target": 15,
+  "reasoning": "You've been consistently tracking Spanish vocabulary and have a strong journaling habit. Moving from word memorization to active practice sessions is a natural next step. A monthly challenge gives you enough time to notice real progress in conversational ability."
+}
