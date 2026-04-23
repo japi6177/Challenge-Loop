@@ -110,3 +110,85 @@ INSERT INTO challenges (category, title, description, start_date, end_date, entr
 ('Educational', 'Group Coding Sprint', 'Everyone codes for at least one hour a day — share what you built at the end.', DATE_TRUNC('week', CURRENT_DATE)::DATE, (DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '13 days')::DATE, 'checkbox', 1, 'group'),
 ('Educational', 'Group Language Learning', 'Pick a language and all learn together — hit your daily lesson and share new words with the group.', DATE_TRUNC('week', CURRENT_DATE)::DATE, (DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '13 days')::DATE, 'checkbox', 1, 'group'),
 ('Educational', 'Group TED Talk a Day', 'Watch one TED Talk every day and post your biggest takeaway for the group.', DATE_TRUNC('week', CURRENT_DATE)::DATE, (DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '13 days')::DATE, 'checkbox', 1, 'group');
+
+
+-- =============================================================
+-- Test users and friendships
+-- =============================================================
+
+INSERT INTO users (username, email)
+SELECT 
+  'Test-User-' || gs,
+  'test' || gs || '@gmail.com'
+FROM generate_series(1, 30) AS gs;
+
+WITH pairs AS (
+  SELECT u1.id AS user_id, u2.id AS friend_id,
+    CASE 
+      WHEN random() < 0.6 THEN 'accepted'
+      ELSE 'pending'
+    END AS status
+  FROM users u1
+  JOIN users u2 ON u1.id <> u2.id
+  WHERE random() < 0.15
+)
+INSERT INTO friends (user_id, friend_id, status)
+SELECT user_id, friend_id, status
+FROM pairs;
+
+INSERT INTO friends (user_id, friend_id, status)
+SELECT friend_id, user_id, 'accepted' FROM friends
+WHERE status = 'accepted'
+  AND NOT EXISTS (
+    SELECT 1 FROM friends f2
+    WHERE f2.user_id = friends.friend_id
+      AND f2.friend_id = friends.user_id
+  );
+
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+INSERT INTO user_challenges (user_id, challenge_id) SELECT u.id, c.id
+FROM users u JOIN challenges c ON true WHERE random() < 0.25 ON CONFLICT DO NOTHING;
+

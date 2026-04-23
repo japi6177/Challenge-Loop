@@ -134,7 +134,7 @@ const auth = (req, res, next) => {
     // Check if token's user has logged out since it was issued
     const email = req.auth.email;
     const iat = req.auth.iat; // issued at (epoch seconds)
-    
+
     if (!email || !iat) {
       console.log('[Auth] Token missing email or iat payload');
       res.clearCookie('token');
@@ -148,7 +148,7 @@ const auth = (req, res, next) => {
         LEFT JOIN user_logouts ul ON u.email = ul.email 
         WHERE u.email = $1
       `, [email]);
-      
+
       if (!userRecord || (userRecord.logout_seconds && iat < userRecord.logout_seconds)) {
         if (!userRecord) {
           console.log(`[Auth] User not found for email: ${email}`);
@@ -166,17 +166,25 @@ const auth = (req, res, next) => {
     // Assign auth object to mock existing session.user references to prevent further code changes
     req.session = req.session || {};
     req.session.user = req.auth;
+    
+    //Add pfp to session token
+    if (!req.session.user.profile_picture) {
+      const fullUser = await db.oneOrNone('SELECT profile_picture FROM users WHERE email = $1', [req.auth.email]);
+      if (fullUser) {req.session.user.profile_picture = fullUser.profile_picture;}
+    }
+
     next();
   });
 };
 
 function reissueToken(res, userPayload) {
-    const newToken = jwt.sign(userPayload, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '7d' });
-    res.cookie('token', newToken, { httpOnly: true });
+  const newToken = jwt.sign(userPayload, process.env.SESSION_SECRET || 'supersecret', { expiresIn: '7d' });
+  res.cookie('token', newToken, { httpOnly: true });
 }
 
 
 //-----------------------------------------------------------------------  Routes  -----------------------------------------------------------------------\\
+
 
 app.get('/', (req, res) => res.redirect('/login'));
 
@@ -211,7 +219,7 @@ app.post('/email-login', async (req, res) => {
     res.cookie('pending_token', pendingToken, { httpOnly: true });
 
     if (email.endsWith('@example.com')) {
-       console.log(`[DEV] Skipped sending email for test user login.`);
+      console.log(`[DEV] Skipped sending email for test user login.`);
     } else if (resend) {
       await resend.emails.send({
         from: 'onboarding@resend.abad.cc',
@@ -241,27 +249,27 @@ app.post('/verify-code', async (req, res) => {
   }
 
   try {
-      const decoded = jwt.verify(req.cookies.pending_token, process.env.SESSION_SECRET || 'supersecret');
-      const inputHash = crypto.createHash('sha256').update(code).digest('hex');
+    const decoded = jwt.verify(req.cookies.pending_token, process.env.SESSION_SECRET || 'supersecret');
+    const inputHash = crypto.createHash('sha256').update(code).digest('hex');
 
-      if (inputHash === decoded.codeHash) {
-          let user;
-          if (decoded.action === 'register') {
-              user = await db.one('INSERT INTO users(username, email) VALUES($1, $2) RETURNING id, username, email', [decoded.username, decoded.email]);
-              user.profile_picture = null;
-          } else {
-              user = await db.one('SELECT * FROM users WHERE email = $1', [decoded.email]);
-          }
-
-          reissueToken(res, { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture });
-          res.clearCookie('pending_token');
-          res.redirect('/home');
+    if (inputHash === decoded.codeHash) {
+      let user;
+      if (decoded.action === 'register') {
+        user = await db.one('INSERT INTO users(username, email) VALUES($1, $2) RETURNING id, username, email', [decoded.username, decoded.email]);
+        user.profile_picture = null;
       } else {
-          res.render('pages/verify-code', { error: 'Invalid code.' });
+        user = await db.one('SELECT * FROM users WHERE email = $1', [decoded.email]);
       }
+
+      reissueToken(res, { username: user.username, email: user.email, id: user.id, profile_picture: user.profile_picture });
+      res.clearCookie('pending_token');
+      res.redirect('/home');
+    } else {
+      res.render('pages/verify-code', { error: 'Invalid code.' });
+    }
   } catch (err) {
-      console.error(err);
-      res.render('pages/verify-code', { error: 'Session expired or error logging in.' });
+    console.error(err);
+    res.render('pages/verify-code', { error: 'Session expired or error logging in.' });
   }
 });
 
@@ -305,7 +313,7 @@ app.post('/register', async (req, res) => {
     res.cookie('pending_token', pendingToken, { httpOnly: true });
 
     if (email.endsWith('@example.com')) {
-       console.log(`[DEV] Skipped sending email for test user registration.`);
+      console.log(`[DEV] Skipped sending email for test user registration.`);
     } else if (resend) {
       await resend.emails.send({
         from: 'onboarding@resend.abad.cc',
@@ -390,6 +398,71 @@ app.get('/discover', auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.redirect('/home');
+  }
+});
+
+app.get('/social', auth, async (req, res) => {
+  try {
+    const myID = req.session.user.id;
+
+    const rows = await db.any(`
+      SELECT
+        c.id AS challenge_id,
+        c.title,
+        c.description,
+        u.id AS user_id,
+        u.username,
+        u.profile_picture
+      FROM user_challenges mine
+      JOIN user_challenges others
+        ON mine.challenge_id = others.challenge_id
+      JOIN challenges c
+        ON c.id = mine.challenge_id
+      JOIN users u
+        ON u.id = others.user_id
+      WHERE mine.user_id = $1
+        AND others.user_id != $1
+      ORDER BY c.title, u.username;
+    `, [myID]);
+
+    const groupedChallenges = [];
+    const seen = {};
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      if (!seen[row.challenge_id]) {
+        seen[row.challenge_id] = {
+          id: row.challenge_id,
+          title: row.title,
+          description: row.description,
+          users: []
+        };
+        groupedChallenges.push(seen[row.challenge_id]);
+      }
+
+      seen[row.challenge_id].users.push({
+        id: row.user_id,
+        username: row.username,
+        profile_picture: row.profile_picture
+      });
+    }
+
+    //This is super innefficienct but that's probably fine
+    for (let i = 0; i < groupedChallenges.length; i++) {
+      groupedChallenges[i].users = groupedChallenges[i].users.slice(0, 3);
+    }
+
+    res.render('pages/social', {
+      user: req.session.user,
+      groupedChallenges: groupedChallenges
+    });
+  } catch (err) {
+    console.log(err);
+    res.render('pages/social', {
+      groupedChallenges: [],
+      error: 'Could not load social page.'
+    });
   }
 });
 
@@ -578,7 +651,7 @@ app.get('/challenge/:id', auth, async (req, res) => {
 
     // Comments
     const comments = await db.any(`
-      SELECT cc.*, u.username FROM challenge_comments cc
+      SELECT cc.*, u.username, u.profile_picture FROM challenge_comments cc
       JOIN users u ON cc.user_id = u.id
       WHERE cc.challenge_id = $1
       ORDER BY cc.created_at DESC
@@ -694,7 +767,7 @@ app.post('/challenge/:id/log', auth, async (req, res) => {
          SET amount=$1, is_completed=$2, photo_data=$3, judge_status=$4
          WHERE id=$5`,
         [amount || 0, isCompleted, photo_data || existing.photo_data || null,
-         judgeStatus !== null ? judgeStatus : existing.judge_status, existing.id]
+        judgeStatus !== null ? judgeStatus : existing.judge_status, existing.id]
       );
     } else {
       await db.none(
@@ -783,7 +856,7 @@ app.post('/challenge/:id/edit', auth, async (req, res) => {
            start_date=$6, end_date=$7, challenge_type=$8, enable_judging=$9
        WHERE id=$10`,
       [category, title, description || '', entry_type, daily_target || 1,
-       start_date, end_date, challenge_type, newJudging, challengeId]
+        start_date, end_date, challenge_type, newJudging, challengeId]
     );
 
     res.redirect(`/challenge/${challengeId}`);
@@ -940,6 +1013,73 @@ app.get('/profile/:username', auth, async (req, res) => {
 
     const isMe = req.session.user.username === profileUser.username;
 
+    //Are you friends wihtth me?
+    let friendStatus = 'none';
+    if (!isMe) {
+      const outgoing = await db.oneOrNone('SELECT status FROM friends WHERE user_id = $1 AND friend_id = $2', [req.session.user.id, profileUser.id]);
+      if (outgoing) {
+        if (outgoing.status === 'accepted') {
+          friendStatus = 'accepted';
+        } else if (outgoing.status === 'pending') {
+          friendStatus = 'pending';
+        }
+      }
+      else {
+        const incoming = await db.oneOrNone('SELECT status FROM friends WHERE user_id = $1 AND friend_id = $2', [profileUser.id, req.session.user.id]);
+        if (incoming) {
+          if (incoming.status === 'pending') {
+            friendStatus = 'incoming';
+          } else if (incoming.status === 'accepted') {
+            friendStatus = 'accepted';
+          }
+        }
+      }
+    }
+
+    //Friend list
+    let friendsList = [];
+    let friendCount = 0;
+
+    if (profileUser) {
+      // Get /:username's friends
+      const profileFriends = await db.any(`SELECT u.id, u.username, u.profile_picture FROM friends f JOIN users u ON u.id = f.friend_id WHERE f.user_id = $1 AND f.status = 'accepted' ORDER BY u.username ASC`, [profileUser.id]);
+
+      friendCount = profileFriends.length;
+
+      if (!isMe) {
+        //Get my friends too if this isn't me
+        const myFriends = await db.any(`SELECT friend_id FROM friends WHERE user_id = $1 AND status = 'accepted'`, [req.session.user.id]);
+
+        const myFriendIDs = new Set(myFriends.map(f => f.friend_id));
+
+        friendsList = profileFriends.map(function (friend) {
+          return {
+            id: friend.id,
+            username: friend.username,
+            profile_picture: friend.profile_picture,
+            mutual: myFriendIDs.has(friend.id)
+          };
+        });
+
+        //Sort out the mutual friensd and then sort alphamebedically
+        friendsList.sort((a, b) => {
+          if (a.mutual !== b.mutual) {
+            return a.mutual ? -1 : 1;
+          }
+          return a.username.localeCompare(b.username);
+        });
+      } else {
+        //isMe
+        friendsList = profileFriends.map(function (friend) {
+          return {
+            id: friend.id,
+            username: friend.username,
+            profile_picture: friend.profile_picture
+          };
+        });
+      }
+    }
+
     const counts = await db.oneOrNone(`
       SELECT
         COUNT(*) FILTER (WHERE COALESCE(up.progress, 0) < 100) as active_count,
@@ -948,6 +1088,7 @@ app.get('/profile/:username', auth, async (req, res) => {
       LEFT JOIN user_progress up ON uc.id = up.user_challenge_id
       WHERE uc.user_id = $1
     `, [profileUser.id]);
+
 
     const activeChallenges = await db.any(`
       SELECT c.*, COALESCE(up.progress, 0) AS progress
@@ -977,20 +1118,30 @@ app.get('/profile/:username', auth, async (req, res) => {
     const successMessages = {
       password: 'Password changed successfully.',
       email: 'Email updated successfully.',
-      picture: 'Profile picture updated.'
+      picture: 'Profile picture updated.',
+      request: 'Friend request sent.',
+      accepted: 'Friend request accepted!',
+      removed: 'Friend removed.',
+      canceled: 'Friend request canceled'
     };
 
     res.render('pages/profile', {
       user: req.session.user,
       profileUser,
       isMe,
+      friendCount,
+      friendsList,
       activeCount: counts ? counts.active_count : 0,
       completedCount: counts ? counts.completed_count : 0,
       activeChallenges,
       completedChallenges,
-      flashError: isMe ? errorMessages[req.query.error] || null : null,
-      flashSuccess: isMe ? successMessages[req.query.success] || null : null,
-      openEdit: isMe && !!(req.query.error || req.query.success)
+      flashError: errorMessages[req.query.error] || null,
+      flashSuccess: successMessages[req.query.success] || null,
+      openEdit: isMe && !!(req.query.error || req.query.success),
+      isFriend: friendStatus === 'accepted',
+      isPending: friendStatus === 'pending',
+      isIncoming: friendStatus === 'incoming',
+      canAddFriend: friendStatus === 'none'
     });
 
   } catch (err) {
@@ -1001,7 +1152,9 @@ app.get('/profile/:username', auth, async (req, res) => {
 
 app.get('/profile', auth, (req, res) => {
   const username = req.session.user.username;
-  res.redirect(`/profile/${username}`);
+  const query = new URLSearchParams(req.query).toString(); //Pass along error/success messages
+  const queryString = query ? `?${query}` : '';
+  res.redirect(`/profile/${username}${queryString}`);
 });
 
 app.post('/profile/change-email', auth, async (req, res) => {
@@ -1015,11 +1168,11 @@ app.post('/profile/change-email', auth, async (req, res) => {
 
     const userId = req.session.user.id;
     await db.none('UPDATE users SET email = $1 WHERE id = $2', [new_email, userId]);
-    
+
     // Reissue token with new email
     const updatedUser = { ...req.session.user, email: new_email };
     reissueToken(res, updatedUser);
-    
+
     res.redirect('/profile?success=email');
   } catch (err) {
     console.error(err);
@@ -1034,7 +1187,7 @@ app.post('/profile/upload-picture', auth, async (req, res) => {
       return res.redirect('/profile?error=no_image');
     }
     await db.none('UPDATE users SET profile_picture = $1 WHERE id = $2', [image_data, req.session.user.id]);
-    
+
     // Reissue token with new profile picture
     const updatedUser = { ...req.session.user, profile_picture: image_data };
     reissueToken(res, updatedUser);
@@ -1116,6 +1269,40 @@ app.get('/admin/send-reminders', async (req, res) => {
   }
 });
 
+//--------------------FRIENDS------------------------//
+
+app.post('/add-friend/:username', auth, async (req, res) => {
+  const myID = req.session.user.id;
+  const { username } = req.params;
+
+  try {
+    const friendID = await db.one('SELECT id FROM users WHERE username = $1', [username]);
+
+    const cancelUnfriend = await db.oneOrNone('SELECT status FROM friends WHERE user_id = $1 AND friend_id = $2', [myID, friendID.id]);
+
+    if (!cancelUnfriend) {
+      const sendAccept = await db.oneOrNone('SELECT status FROM friends WHERE user_id = $1 AND friend_id = $2', [friendID.id, myID]);
+
+      if (sendAccept && sendAccept.status === 'pending') {
+        await db.none('INSERT INTO friends (user_id, friend_id, status) VALUES ($1, $2, $3)', [myID, friendID.id, 'accepted']);
+        await db.none("UPDATE friends SET status = 'accepted' WHERE user_id = $1 AND friend_id = $2", [friendID.id, myID]);
+        return res.redirect(`/profile/${username}?success=accepted`);
+      } else {
+        await db.none("INSERT INTO friends (user_id, friend_id, status) VALUES ($1, $2, 'pending')", [myID, friendID.id]);
+        return res.redirect(`/profile/${username}?success=request`);
+      }
+    } else if (cancelUnfriend.status === 'accepted') {
+      await db.none('DELETE FROM friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)', [myID, friendID.id]);
+      return res.redirect(`/profile/${username}?success=removed`);
+    } else {
+      await db.none('DELETE FROM friends WHERE user_id = $1 AND friend_id = $2', [myID, friendID.id]);
+      return res.redirect(`/profile/${username}?success=canceled`);
+    }
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/profile/${username}?error=server`);
+  }
+});
 
 //---------------- AI RECOMMENDER ----------------//
 
