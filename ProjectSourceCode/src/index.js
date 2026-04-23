@@ -1464,7 +1464,7 @@ Respond with ONLY valid JSON in this exact format, no extra text:
 
 // starting the server and keeping the connection open to listen for more requests
 
-const server = app.listen(3000);
+const server = app.listen(process.env.NODE_ENV === 'test' ? 0 : 3000);
 console.log('Server is listening on port 3000');
 
 server.shutdown = async () => {

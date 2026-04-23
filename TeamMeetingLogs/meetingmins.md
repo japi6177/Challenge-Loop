@@ -1,4 +1,4 @@
-# Team Meeting Minutes
+# Team 3 Meeting Minutes
 
 ## Week 2: April 6th, 2026
 **Decisions Made:**

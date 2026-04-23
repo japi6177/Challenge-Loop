@@ -1,4 +1,4 @@
-# 🚀 Getting Started
+# 🚀 Challenge Loop - Team 3 Getting Started
 
 ## Prerequisites
 To run this application locally, you need:

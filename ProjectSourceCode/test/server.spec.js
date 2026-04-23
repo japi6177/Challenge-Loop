@@ -90,25 +90,49 @@ describe('Core Authentication Operations', () => {
                      expect(res4).to.have.status(302);
                      expect(res4.header.location).to.equal('/verify-code');
 
-                     // 5. Verify the login code
-                     agent
-                       .post('/verify-code')
-                       .send({ code: '123456' })
-                       .redirects(0)
-                       .end((err5, res5) => {
+                      // 5. Verify the login code
+                      agent
+                        .post('/verify-code')
+                        .send({ code: '123456' })
+                        .redirects(0)
+                        .end((err5, res5) => {
                           expect(res5).to.have.status(302);
                           expect(res5.header.location).to.equal('/home');
 
-                          // 6. Tear down via endpoint
+                          // 6. Verify Home Page Data
                           agent
-                            .post('/profile/delete-account')
-                            .redirects(0)
+                            .get('/home')
                             .end((err6, res6) => {
-                               expect(res6).to.have.status(302);
-                               expect(res6.header.location).to.include('/login');
-                               done();
+                              try {
+                                expect(res6).to.have.status(200);
+                                assert.include(res6.text, 'Active');
+                                assert.include(res6.text, 'Challenges');
+                                assert.include(res6.text, 'Your Stats');
+                              } catch (assertionErr) {
+                                console.log('Home page assertion failed!');
+                                console.log('Body snippet:', res6.text.substring(0, 1000));
+                                throw assertionErr;
+                              }
+
+                              // 7. Verify Discover Page Data
+                              agent
+                                .get('/discover')
+                                .end((err7, res7) => {
+                                  expect(res7).to.have.status(200);
+                                  assert.include(res7.text, 'Welcome to Discover');
+                                  
+                                  // 8. Tear down via endpoint
+                                  agent
+                                    .post('/profile/delete-account')
+                                    .redirects(0)
+                                    .end((err8, res8) => {
+                                      expect(res8).to.have.status(302);
+                                      expect(res8.header.location).to.include('/login');
+                                      done();
+                                    });
+                                });
                             });
-                       });
+                        });
                   });
               });
           });
