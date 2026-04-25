@@ -1,0 +1,163 @@
+Test  environment for all  tests:
+Platform: Localhost
+Browser: Chrome
+Database: Project PostgreSQL database
+Test users: Pre-created user accounts with sample challenges and comments
+
+
+
+
+Feature 1: Add Other Users as Friends
+Users should be able to send friend requests to other users, accept incoming friend requests, cancel pending requests, and remove existing friends.
+
+Test accounts: testuser1, testuser2
+
+Initial condition: Both accounts exist in the database. The users are not already friends.
+
+Acceptance Criteria
+A logged-in user can send a friend request to another user.
+The receiving user can accept the friend request.
+Once accepted, both users appear as friends.
+A user can remove an existing friend.
+The app should not allow duplicate friend relationships.
+UAT Test Cases
+
+Feature 1 test 1: Send Friend Request
+
+Procedure:
+Log in as testuser1.
+Navigate to testuser2’s profile.
+Click the add friend button.
+Observe the friend status.
+
+Expected result: The button/status changes to show that the request is pending.  A pending friend request is created in the database.
+
+Actual result: TBA
+
+Feature  1  aTest 2: Accept Friend Request
+
+Procedure:
+Log out of testuser1.
+Log in as testuser2.
+Navigate to the friend requests area or testuser1’s profile.
+Accept the friend request.
+
+Expected result:
+The request status changes from pending to accepted.
+ Both users are now listed as friends.
+
+Actual result:TBA
+
+
+Feature 1 Test  3: Remove Friend
+
+Procedure:
+Log in as either testuser1 or testuser2.
+Navigate to the other user’s profile.
+Click the unfriend/remove friend button.
+
+Expected result:
+The friendship is removed for both users.
+ The users no longer appear as friends.
+
+Actual result: TBA
+
+
+Feature 2: Comment on Challenges
+Users should be able to leave comments on challenges. Comments should display the commenter’s username, profile picture if available, comment text, and date.
+
+Test account: testuser1
+Test comment: “Comment”
+
+Procedure:
+Log in as testuser1.
+Open any  challenge
+Enter the comment.
+Submit the comment.
+Close the challenge
+Open it up again
+
+Expected result:
+The comment appears on the challenge page after  posting and after  reopeniugn
+T e displayed username is testuser1.
+The comment is saved in the database.
+
+Actual result: TBA
+
+FEATURE 2 test 2: Submit Empty Comment
+
+Procedure:
+Log in as testuser1.
+Open a challenge page.
+Leave the comment box empty.
+Attempt to submit the comment.
+
+Expected result:
+ The app does not create a blank comment.
+
+Actual result: TBA
+
+Feature 3: Delete Your Account
+Users should be able to delete their own account. Once deleted, the user should no longer be able to log in, and their account information should be removed or no longer accessible.
+
+Test account:testuser1
+
+Acceptance Criteria:
+User’s account  is deleted
+All user comments  are  deleted 
+All leaderboard  scores  are  deleted
+Friendship removed from all  users they were friends  with
+All metadata  associated  with user  is erased.
+
+Initial condition:
+Account exists.
+Account may have sample comments, challenges, or friend relationships.
+Acceptance Criteria
+A logged-in user can access the account deletion option.
+The user is asked to confirm before deletion.
+After deletion, the account can no longer be used to log in.
+Deleted user data should no longer appear in places where active user accounts are shown.
+The app should redirect the user after account deletion.
+
+
+Feature 3  test  1: Delete Account Successfully
+
+Procedure:
+Log in as deleteuser.
+Navigate to the profile or account settings page.
+Select the delete account option.
+Confirm account deletion.
+
+Expected result:
+The account is deleted.
+ The user is logged out or redirected away from the profile page.
+ The account is removed from the users table
+All other data associated with user is gone
+
+Actual result:  TBA
+
+Feature  3 Test 2: Attempt Login After Account Deletion
+
+Procedure:
+Delete the deleteuser account.
+Return to the login page.
+Attempt to log in using deleteuser@example.com and Password123.
+
+Expected result:
+Login fails.
+The app displays an error message such as invalid credentials or account not found.
+
+Actual result:TBA
+
+Feature  3  Test 3: Deleted Account Is Not Publicly Accessible
+
+Procedure:
+Delete the deleteuser account.
+Log in as another user.
+Attempt to navigate to /profile/deleteuser.
+
+Expected result:
+The deleted user’s profile is not displayed.
+The app shows an error, redirects, or indicates that the user does not exist.
+
+Actual result: TBA
